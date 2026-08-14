@@ -1,0 +1,14 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Proxy API calls through Netlify's edge (server-to-server) instead of the browser calling the
+# backend directly — the backend is only served over plain HTTP, and a browser on this HTTPS site
+# would block that as mixed content. Netlify terminates HTTPS for the visitor and relays the
+# request to the backend itself, so no browser-side scheme mismatch ever happens. `status = 200`
+# (not a 3xx) tells Netlify to proxy the request rather than redirect the browser to it.
+[[redirects]]
+  from = "/api/*"
+  to = "http://bukdj0lqd5p38mw4ne3x6dfg.178.105.169.55.sslip.io/api/:splat"
+  status = 200
+  force = true
