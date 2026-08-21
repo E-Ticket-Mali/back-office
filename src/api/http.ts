@@ -2,6 +2,14 @@ import { getToken, notifyUnauthorized } from './token';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api/v1';
 
+/** Thrown on 401 so callers can silently bail out instead of flashing an error — the user is being logged out already. */
+export class UnauthorizedError extends Error {
+  constructor() {
+    super('Session expirée, veuillez vous reconnecter.');
+    this.name = 'UnauthorizedError';
+  }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = getToken();
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -13,7 +21,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
   if (res.status === 401) {
     notifyUnauthorized();
-    throw new Error('Session expirée, veuillez vous reconnecter.');
+    throw new UnauthorizedError();
   }
   if (!res.ok) {
     const body = await res.json().catch(() => null);

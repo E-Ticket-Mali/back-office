@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { UnauthorizedError } from '../api/http';
 
 export function useCollection<T>(fetcher: () => Promise<T[]>) {
   const [data, setData] = useState<T[]>([]);
@@ -19,7 +20,11 @@ export function useCollection<T>(fetcher: () => Promise<T[]>) {
         setData(rows);
         hasLoadedOnce.current = true;
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Erreur de chargement'))
+      .catch((e: unknown) => {
+        // La déconnexion (App -> LoginView) est déjà déclenchée par http.ts : ne pas flasher une erreur ici.
+        if (e instanceof UnauthorizedError) return;
+        setError(e instanceof Error ? e.message : 'Erreur de chargement');
+      })
       .finally(() => {
         setLoading(false);
         setRefreshing(false);
