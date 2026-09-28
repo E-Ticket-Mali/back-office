@@ -40,8 +40,8 @@ const FIELDS: FieldDef[] = [
   { key: 'city', label: 'Ville', type: 'text' },
   { key: 'location', label: 'Lieu', type: 'text' },
   { key: 'date', label: 'Date et heure', type: 'datetime-local' },
-  { key: 'icon', label: 'Icône (emoji)', type: 'text' },
-  { key: 'desc', label: 'Description', type: 'text', fullWidth: true },
+  { key: 'icon', label: 'Icône (emoji)', type: 'text', optional: true },
+  { key: 'desc', label: 'Description', type: 'text', fullWidth: true, optional: true },
 ];
 
 function toDatetimeLocal(iso: string): string {

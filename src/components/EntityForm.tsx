@@ -18,13 +18,19 @@ export interface FieldDef {
   visible?: (values: FormValues) => boolean;
   /** Clés remises à '' quand la valeur de ce champ change (ex: changer de région invalide le département choisi). */
   resets?: string[];
+  /** Champ facultatif : par défaut tout champ texte / nombre / date est obligatoire. */
+  optional?: boolean;
+  /** Bornes des champs numériques. */
+  min?: number;
+  max?: number;
 }
 
 interface EntityFormProps {
   fields: FieldDef[];
   initialValues: object;
   submitLabel: string;
-  onSubmit: (values: FormValues) => void;
+  /** Peut être asynchrone : une erreur levée est affichée dans le formulaire au lieu d'être perdue. */
+  onSubmit: (values: FormValues) => void | Promise<void>;
   onCancel: () => void;
   /** Nombre de colonnes de la grille. Par défaut 2 si le formulaire compte plus de 4 champs, sinon 1. */
   columns?: 1 | 2;
@@ -105,6 +111,7 @@ function renderControl(field: FieldDef, values: FormValues, setField: SetField, 
         id={`field-${field.key}`}
         style={inputStyle}
         type="datetime-local"
+        required={!field.optional}
         value={String(values[field.key] ?? '')}
         onChange={(e) => setField(field, e.target.value)}
       />
@@ -131,6 +138,10 @@ function renderControl(field: FieldDef, values: FormValues, setField: SetField, 
       id={`field-${field.key}`}
       style={inputStyle}
       type={field.type === 'number' ? 'number' : 'text'}
+      required={!field.optional}
+      min={field.min}
+      max={field.max}
+      step={field.type === 'number' ? 'any' : undefined}
       value={String(values[field.key] ?? '')}
       onChange={(e) => setField(field, field.type === 'number' ? Number(e.target.value) : e.target.value)}
     />
@@ -140,6 +151,8 @@ function renderControl(field: FieldDef, values: FormValues, setField: SetField, 
 export function EntityForm(props: Readonly<EntityFormProps>) {
   const { fields, initialValues, submitLabel, onSubmit, onCancel, columns } = props;
   const [values, setValues] = useState<FormValues>(initialValues as FormValues);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const visibleFields = fields.filter((f) => !f.visible || f.visible(values));
   const colCount = columns ?? (visibleFields.length > 4 ? 2 : 1);
 
@@ -152,9 +165,17 @@ export function EntityForm(props: Readonly<EntityFormProps>) {
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        onSubmit(values);
+        setError(null);
+        setSubmitting(true);
+        try {
+          await onSubmit(values);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+        } finally {
+          setSubmitting(false);
+        }
       }}
     >
       <div
@@ -169,6 +190,14 @@ export function EntityForm(props: Readonly<EntityFormProps>) {
       >
         {visibleFields.map((field) => renderField(field, values, setField, colCount))}
       </div>
+      {error && (
+        <div
+          role="alert"
+          style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 8, background: 'rgba(206,17,38,0.08)', color: '#CE1126', fontSize: 13 }}
+        >
+          {error}
+        </div>
+      )}
       <div className="bo-form-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 18, borderTop: '1px solid #E7DED0' }}>
         <button
           type="button"
@@ -188,7 +217,9 @@ export function EntityForm(props: Readonly<EntityFormProps>) {
         </button>
         <button
           type="submit"
+          disabled={submitting}
           style={{
+            opacity: submitting ? 0.6 : 1,
             padding: '10px 20px',
             border: 'none',
             background: '#164A23',

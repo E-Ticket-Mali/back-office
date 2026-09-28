@@ -19,7 +19,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     },
     ...options,
   });
-  if (res.status === 401) {
+  // A 401 on the login endpoints means wrong credentials, not an expired session: surface the server message.
+  if (res.status === 401 && !path.startsWith('/auth/')) {
     notifyUnauthorized();
     throw new UnauthorizedError();
   }

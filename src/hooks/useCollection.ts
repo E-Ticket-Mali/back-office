@@ -7,6 +7,10 @@ export function useCollection<T>(fetcher: () => Promise<T[]>) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasLoadedOnce = useRef(false);
+  // Callers often pass an inline arrow function (new identity on every render). Keeping it in a ref
+  // makes `reload` stable, otherwise each fetch -> setState -> re-render -> new fetcher -> fetch again, forever.
+  const fetcherRef = useRef(fetcher);
+  fetcherRef.current = fetcher;
 
   const reload = useCallback(() => {
     if (hasLoadedOnce.current) {
@@ -15,7 +19,8 @@ export function useCollection<T>(fetcher: () => Promise<T[]>) {
       setLoading(true);
     }
     setError(null);
-    fetcher()
+    fetcherRef
+      .current()
       .then((rows) => {
         setData(rows);
         hasLoadedOnce.current = true;
@@ -29,7 +34,7 @@ export function useCollection<T>(fetcher: () => Promise<T[]>) {
         setLoading(false);
         setRefreshing(false);
       });
-  }, [fetcher]);
+  }, []);
 
   useEffect(() => {
     reload();

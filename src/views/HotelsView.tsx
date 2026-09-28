@@ -27,8 +27,8 @@ const FIELDS: FieldDef[] = [
   { key: 'name', label: 'Nom de l’hôtel', type: 'text' },
   { key: 'city', label: 'Ville', type: 'text' },
   { key: 'location', label: 'Emplacement', type: 'text' },
-  { key: 'rating', label: 'Note (sur 5)', type: 'number' },
-  { key: 'desc', label: 'Description', type: 'text', fullWidth: true },
+  { key: 'rating', label: 'Note (sur 5)', type: 'number', min: 0, max: 5 },
+  { key: 'desc', label: 'Description', type: 'text', fullWidth: true, optional: true },
 ];
 
 const EMPTY: HotelInput = { name: '', city: '', location: '', rating: 4, desc: '' };

@@ -4,7 +4,8 @@ import { Modal } from './Modal';
 interface ConfirmDialogProps {
   title: string;
   message: string;
-  onConfirm: (reason: string) => void;
+  /** Peut être asynchrone : si elle échoue, le message est affiché et la fenêtre reste ouverte. */
+  onConfirm: (reason: string) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -32,7 +33,22 @@ const labelStyle: React.CSSProperties = {
 export function ConfirmDialog(props: Readonly<ConfirmDialogProps>) {
   const { title, message, onConfirm, onCancel } = props;
   const [reason, setReason] = useState('');
-  const canConfirm = reason.trim().length > 0;
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const canConfirm = reason.trim().length > 0 && !busy;
+
+  const confirm = async () => {
+    if (!canConfirm) return;
+    setError(null);
+    setBusy(true);
+    try {
+      await onConfirm(reason.trim());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <Modal title={title} onClose={onCancel} size="sm">
@@ -51,6 +67,15 @@ export function ConfirmDialog(props: Readonly<ConfirmDialogProps>) {
           autoFocus
         />
       </div>
+
+      {error && (
+        <div
+          role="alert"
+          style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 8, background: 'rgba(206,17,38,0.08)', color: '#CE1126', fontSize: 13 }}
+        >
+          {error}
+        </div>
+      )}
 
       <div className="bo-form-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
         <button
@@ -71,7 +96,7 @@ export function ConfirmDialog(props: Readonly<ConfirmDialogProps>) {
         </button>
         <button
           type="button"
-          onClick={() => canConfirm && onConfirm(reason.trim())}
+          onClick={confirm}
           disabled={!canConfirm}
           style={{
             padding: '9px 18px',

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { cancelBooking, getBooking } from '../api/bookings';
 import { useCollection } from '../hooks/useCollection';
+import { useActionError } from '../hooks/useActionError';
 import { LoadingState } from '../components/LoadingState';
 import type { AdminBooking, BookingStatus } from '../types';
 
@@ -37,20 +38,22 @@ export function BookingDetailView(props: Readonly<BookingDetailViewProps>) {
   const { booking: initial, onBack } = props;
   const { data: rows, loading, reload } = useCollection(() => getBooking(initial.id).then((b) => [b]));
   const [cancelling, setCancelling] = useState(false);
+  const { run, banner } = useActionError();
 
   if (loading || rows.length === 0) return <LoadingState label="Chargement de la réservation…" />;
   const booking = rows[0];
   const [color, bg] = STATUS_COLORS[booking.status];
 
-  const doCancel = async () => {
-    setCancelling(true);
-    try {
-      await cancelBooking(booking.id);
-      reload();
-    } finally {
-      setCancelling(false);
-    }
-  };
+  const doCancel = () =>
+    run(async () => {
+      setCancelling(true);
+      try {
+        await cancelBooking(booking.id);
+        reload();
+      } finally {
+        setCancelling(false);
+      }
+    });
 
   return (
     <div className="bo-page">
@@ -73,6 +76,7 @@ export function BookingDetailView(props: Readonly<BookingDetailViewProps>) {
       >
         ← Retour aux réservations
       </button>
+      {banner}
 
       <div
         className="bo-hero bo-hero-between"

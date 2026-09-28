@@ -9,6 +9,7 @@ import {
   updateTicketType,
 } from '../api/events';
 import { useCollection } from '../hooks/useCollection';
+import { useActionError } from '../hooks/useActionError';
 import { LoadingState } from '../components/LoadingState';
 import type { EventItem, EventTicket, TicketType } from '../types';
 
@@ -83,6 +84,7 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
   const [newType, setNewType] = useState<TicketType>('STANDARD');
   const [newPrice, setNewPrice] = useState('');
   const [editingType, setEditingType] = useState<Record<string, string>>({});
+  const { run, banner } = useActionError();
 
   if (eventLoading || statsLoading || ticketsLoading || scanLoading || eventRows.length === 0) {
     return <LoadingState label="Chargement de l'événement…" />;
@@ -90,31 +92,34 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
   const event = eventRows[0];
   const stats = statsRows[0];
 
-  const addNewTicketType = async () => {
-    const price = Number(newPrice);
-    if (!price) return;
-    await addTicketType(event.id, { type: newType, price });
-    setNewPrice('');
-    reloadEvent();
-  };
+  const addNewTicketType = () =>
+    run(async () => {
+      const price = Number(newPrice);
+      if (!(price > 0)) throw new Error('Renseignez un prix positif.');
+      await addTicketType(event.id, { type: newType, price });
+      setNewPrice('');
+      reloadEvent();
+    });
 
   const startEditType = (tt: EventTicket) => setEditingType((r) => ({ ...r, [tt.id]: String(tt.price) }));
 
-  const saveType = async (tt: EventTicket) => {
-    const price = editingType[tt.id];
-    if (!price) return;
-    await updateTicketType(event.id, tt.id, { price: Number(price) });
-    setEditingType((r) => {
-      const { [tt.id]: _removed, ...rest } = r;
-      return rest;
+  const saveType = (tt: EventTicket) =>
+    run(async () => {
+      const price = editingType[tt.id];
+      if (!price) return;
+      await updateTicketType(event.id, tt.id, { price: Number(price) });
+      setEditingType((r) => {
+        const { [tt.id]: _removed, ...rest } = r;
+        return rest;
+      });
+      reloadEvent();
     });
-    reloadEvent();
-  };
 
-  const removeType = async (tt: EventTicket) => {
-    await deleteTicketType(event.id, tt.id);
-    reloadEvent();
-  };
+  const removeType = (tt: EventTicket) =>
+    run(async () => {
+      await deleteTicketType(event.id, tt.id);
+      reloadEvent();
+    });
 
   return (
     <div className="bo-page">
@@ -137,6 +142,7 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
       >
         ← Retour aux événements
       </button>
+      {banner}
 
       <div
         className="bo-hero"
@@ -165,7 +171,7 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
             { label: 'Billets émis', value: stats.totalTickets },
             { label: 'Billets scannés', value: stats.scanned },
             { label: 'Scans valides', value: stats.valid },
-            { label: 'Scans refusés', value: stats.invalid },
+            { label: 'Scans refusés', value: stats.invalid + stats.used },
           ].map((k) => (
             <div key={k.label} style={{ background: '#FFFFFF', border: '1px solid #E7DED0', borderRadius: 10, padding: 16, boxShadow: '0 2px 8px rgba(31,46,53,0.06)' }}>
               <div style={{ fontSize: 11.5, color: '#6B6459', fontWeight: 600, marginBottom: 6 }}>{k.label}</div>

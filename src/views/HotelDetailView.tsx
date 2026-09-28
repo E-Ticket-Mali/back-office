@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { addRoom, deleteRoom, getHotel, updateRoom } from '../api/hotels';
 import { useCollection } from '../hooks/useCollection';
+import { useActionError } from '../hooks/useActionError';
 import { LoadingState } from '../components/LoadingState';
 import type { Hotel, Room, RoomType } from '../types';
 
@@ -64,39 +65,45 @@ export function HotelDetailView(props: Readonly<HotelDetailViewProps>) {
   const [newPrice, setNewPrice] = useState('');
   const [newCapacity, setNewCapacity] = useState('1');
   const [editingRoom, setEditingRoom] = useState<Record<string, { price: string; capacity: string }>>({});
+  const { run, banner } = useActionError();
 
   if (loading || hotelRows.length === 0) return <LoadingState label="Chargement de l'hôtel…" />;
   const hotel = hotelRows[0];
 
-  const addNewRoom = async () => {
-    const price = Number(newPrice);
-    const capacity = Number(newCapacity);
-    if (!price || !capacity) return;
-    await addRoom(hotel.id, { type: newType, price, capacity });
-    setNewPrice('');
-    setNewCapacity('1');
-    reload();
-  };
+  const addNewRoom = () =>
+    run(async () => {
+      const price = Number(newPrice);
+      const capacity = Number(newCapacity);
+      if (!(price > 0) || !Number.isInteger(capacity) || capacity < 1) {
+        throw new Error('Renseignez un prix positif et une capacité d’au moins 1.');
+      }
+      await addRoom(hotel.id, { type: newType, price, capacity });
+      setNewPrice('');
+      setNewCapacity('1');
+      reload();
+    });
 
   const startEditRoom = (room: Room) => {
     setEditingRoom((r) => ({ ...r, [room.id]: { price: String(room.price), capacity: String(room.capacity) } }));
   };
 
-  const saveRoom = async (room: Room) => {
-    const draft = editingRoom[room.id];
-    if (!draft) return;
-    await updateRoom(hotel.id, room.id, { price: Number(draft.price), capacity: Number(draft.capacity) });
-    setEditingRoom((r) => {
-      const { [room.id]: _removed, ...rest } = r;
-      return rest;
+  const saveRoom = (room: Room) =>
+    run(async () => {
+      const draft = editingRoom[room.id];
+      if (!draft) return;
+      await updateRoom(hotel.id, room.id, { price: Number(draft.price), capacity: Number(draft.capacity) });
+      setEditingRoom((r) => {
+        const { [room.id]: _removed, ...rest } = r;
+        return rest;
+      });
+      reload();
     });
-    reload();
-  };
 
-  const removeRoom = async (room: Room) => {
-    await deleteRoom(hotel.id, room.id);
-    reload();
-  };
+  const removeRoom = (room: Room) =>
+    run(async () => {
+      await deleteRoom(hotel.id, room.id);
+      reload();
+    });
 
   return (
     <div className="bo-page">
@@ -119,6 +126,7 @@ export function HotelDetailView(props: Readonly<HotelDetailViewProps>) {
       >
         ← Retour aux hôtels
       </button>
+      {banner}
 
       <div
         className="bo-hero"
