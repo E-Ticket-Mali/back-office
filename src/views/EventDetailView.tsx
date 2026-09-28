@@ -96,7 +96,7 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
   const addNewTicketType = () =>
     run(async () => {
       const price = Number(newPrice);
-      if (!(price > 0)) throw new Error('Renseignez un prix positif.');
+      if (newPrice.trim() === '' || !(price >= 0)) throw new Error('Renseignez un prix (0 pour un billet gratuit).');
       const capacity = newCapacity.trim() === '' ? undefined : Number(newCapacity);
       if (capacity !== undefined && (!Number.isInteger(capacity) || capacity < 1)) {
         throw new Error('La capacité doit être un entier d’au moins 1 (laisser vide = illimitée).');
@@ -201,7 +201,7 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
             </select>
             <input
               type="number"
-              placeholder="Prix (FCFA)"
+              placeholder="Prix en FCFA (0 = gratuit)"
               value={newPrice}
               onChange={(e) => setNewPrice(e.target.value)}
               style={{ ...selectStyle, flex: 1 }}
@@ -241,7 +241,7 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
                   ) : (
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                       <span style={{ fontSize: 12, color: '#6B6459' }}>
-                        {tt.price.toLocaleString('fr-FR')} FCFA ·{' '}
+                        {tt.price === 0 ? 'Gratuit' : `${tt.price.toLocaleString('fr-FR')} FCFA`} ·{' '}
                         {tt.capacity === null ? 'illimité' : `${tt.remaining ?? 0}/${tt.capacity} restant(s)`}
                       </span>
                       <button type="button" onClick={() => startEditType(tt)} style={smallBtn('#164A23')}>
