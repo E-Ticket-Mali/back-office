@@ -18,8 +18,8 @@ npm run build    # build de production (dist/)
 
 Le proxy Vite (`/api` → `VITE_BACKEND_URL`) pointe par défaut sur le backend
 déployé (Coolify) — aucun backend local requis. Pour tester contre un
-backend Docker local à la place (voir `../backend` ou `../docker`), créer
-`back-office/.env.local` :
+backend Docker local à la place (voir `../backend` ou `../docker`), copier
+`.env.example` en `.env.local` et adapter :
 
 ```
 VITE_BACKEND_URL=http://localhost:5000
