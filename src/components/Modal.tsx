@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Icon } from './Icon';
 
 type ModalSize = 'sm' | 'md' | 'lg';
@@ -18,6 +18,16 @@ const WIDTHS: Record<ModalSize, number> = {
 
 export function Modal(props: Readonly<ModalProps>) {
   const { title, onClose, children, size = 'md' } = props;
+
+  // Escape closes the window, like any dialog.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <div
       aria-label={title}
