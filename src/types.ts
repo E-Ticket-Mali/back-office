@@ -41,9 +41,9 @@ export interface EventTicket {
   type: TicketType;
   price: number;
   /** Max tickets for this type; null = unlimited. */
-  capacity: number | null;
+  capacity?: number | null;
   /** Tickets still available; null = unlimited. */
-  remaining: number | null;
+  remaining?: number | null;
 }
 
 export interface EventItem {

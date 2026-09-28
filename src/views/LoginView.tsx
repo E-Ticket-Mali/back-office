@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../AuthContext';
+import { Icon } from '../components/Icon';
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
@@ -62,7 +63,7 @@ export function LoginView() {
               fontSize: 22,
             }}
           >
-            🎫
+            <Icon name="event" size={24} color="#FAF3EB" />
           </div>
         </div>
         <div

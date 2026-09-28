@@ -5,11 +5,12 @@ import { getEvents } from '../api/events';
 import { getBookings } from '../api/bookings';
 import { getClients } from '../api/clients';
 import { getStaff } from '../api/staff';
+import { Icon, type IconName } from './Icon';
 
 interface NavItemDef {
   id: ViewId;
   label: string;
-  icon: string;
+  icon: IconName;
   count: number;
 }
 
@@ -63,11 +64,11 @@ function SidebarNavButton(props: SidebarNavButtonProps) {
       }}
     >
       {collapsed ? (
-        <span style={{ fontSize: 16 }}>{item.icon}</span>
+        <Icon name={item.icon} size={18} />
       ) : (
         <>
           <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <span style={{ fontSize: 14, flexShrink: 0 }}>{item.icon}</span>
+            <Icon name={item.icon} size={16} />
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
           </span>
           <span style={{ fontSize: 11, opacity: 0.6, flexShrink: 0 }}>{item.count}</span>
@@ -110,7 +111,7 @@ function SidebarDashboardButton(props: SidebarDashboardButtonProps) {
         textAlign: 'left',
       }}
     >
-      <span style={{ fontSize: collapsed ? 16 : 14 }}>📊</span>
+      <Icon name="dashboard" size={collapsed ? 18 : 16} />
       {!collapsed && 'Tableau de bord'}
     </button>
   );
@@ -154,13 +155,13 @@ export function Sidebar(props: Readonly<SidebarProps>) {
   };
 
   const catalogueNav: NavItemDef[] = [
-    { id: 'hotels', label: 'Hôtels', icon: '🏨', count: counts.hotels },
-    { id: 'events', label: 'Événements', icon: '🎟️', count: counts.events },
+    { id: 'hotels', label: 'Hôtels', icon: 'hotel', count: counts.hotels },
+    { id: 'events', label: 'Événements', icon: 'event', count: counts.events },
   ];
   const opsNav: NavItemDef[] = [
-    { id: 'bookings', label: 'Réservations', icon: '🧾', count: counts.bookings },
-    { id: 'clients', label: 'Clients', icon: '👤', count: counts.clients },
-    { id: 'agents', label: 'Agents contrôleurs', icon: '🛂', count: counts.agents },
+    { id: 'bookings', label: 'Réservations', icon: 'booking', count: counts.bookings },
+    { id: 'clients', label: 'Clients', icon: 'client', count: counts.clients },
+    { id: 'agents', label: 'Agents contrôleurs', icon: 'agent', count: counts.agents },
   ];
 
   const groupLabelStyle: React.CSSProperties = {
@@ -221,7 +222,7 @@ export function Sidebar(props: Readonly<SidebarProps>) {
               flexShrink: 0,
             }}
           >
-            🎫
+            <Icon name="event" size={18} color="#FAF3EB" />
           </div>
           {!collapsed && (
             <div style={{ minWidth: 0 }}>
@@ -296,7 +297,7 @@ export function Sidebar(props: Readonly<SidebarProps>) {
           zIndex: 10,
         }}
       >
-        {collapsed ? '›' : '‹'}
+        <Icon name={collapsed ? 'expand' : 'collapse'} size={14} />
       </button>
     </div>
   );

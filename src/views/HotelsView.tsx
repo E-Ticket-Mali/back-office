@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { TableView } from '../components/table/TableView';
-import { plain, entityActions, type Column, type Row } from '../components/table/types';
+import { plain, entityActions, rating, type Column, type Row } from '../components/table/types';
 import { Modal } from '../components/Modal';
 import { EntityForm, type FieldDef, type FormValues } from '../components/EntityForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -59,7 +59,7 @@ export function HotelsView({ filters, onOpenDetail }: HotelsViewProps) {
       plain(h.name),
       plain(h.city),
       plain(h.location),
-      plain(`★ ${h.rating.toFixed(1)}`),
+      rating(h.rating),
       plain(h.rooms.length),
       entityActions(() => setEditing(h), () => onOpenDetail(h), () => setDeleting(h)),
     ],

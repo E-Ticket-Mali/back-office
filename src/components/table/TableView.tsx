@@ -2,6 +2,7 @@ import type { ChangeEvent, ReactNode } from 'react';
 import type { Column, Row } from './types';
 import { gridTemplateFor } from './types';
 import { CellView } from './Cell';
+import { Icon } from '../Icon';
 
 interface TableViewProps {
   columns: Column[];
@@ -169,10 +170,10 @@ export function TableView({
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" onClick={onPrevPage} style={pagerBtn}>
-            ← Précédent
+            <Icon name="back" size={14} /> Précédent
           </button>
           <button type="button" onClick={onNextPage} style={pagerBtn}>
-            Suivant →
+            Suivant <Icon name="next" size={14} />
           </button>
         </div>
       </div>

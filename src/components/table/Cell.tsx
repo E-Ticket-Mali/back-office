@@ -1,4 +1,5 @@
 import type { Cell as CellType } from './types';
+import { CategoryIcon, Icon } from '../Icon';
 
 export function CellView(props: Readonly<{ cell: CellType }>) {
   const { cell } = props;
@@ -17,6 +18,24 @@ export function CellView(props: Readonly<{ cell: CellType }>) {
         }}
       >
         {cell.text}
+      </div>
+    );
+  }
+
+  if (cell.kind === 'rating') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#1F2E35' }}>
+        <Icon name="star" size={14} color="#D9A800" filled />
+        {cell.value.toFixed(1)}
+      </div>
+    );
+  }
+
+  if (cell.kind === 'eventName') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, color: '#1F2E35' }}>
+        <CategoryIcon category={cell.category} size={16} color="#164A23" />
+        <span style={{ overflowWrap: 'anywhere' }}>{cell.text}</span>
       </div>
     );
   }
@@ -95,25 +114,6 @@ export function CellView(props: Readonly<{ cell: CellType }>) {
       <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
         <button type="button" onClick={cell.onDetail} title="Détails" style={actionBtnStyle('#6B6459')}>
           Détails
-        </button>
-      </div>
-    );
-  }
-
-  if (cell.kind === 'detailCancelActions') {
-    return (
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
-        <button type="button" onClick={cell.onDetail} title="Détails" style={actionBtnStyle('#6B6459')}>
-          Détails
-        </button>
-        <button
-          type="button"
-          onClick={cell.onCancel}
-          title="Annuler"
-          disabled={cell.cancelDisabled}
-          style={{ ...actionBtnStyle('#A6341D'), opacity: cell.cancelDisabled ? 0.4 : 1, cursor: cell.cancelDisabled ? 'not-allowed' : 'pointer' }}
-        >
-          Annuler
         </button>
       </div>
     );

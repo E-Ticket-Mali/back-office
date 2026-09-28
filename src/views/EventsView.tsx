@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { TableView } from '../components/table/TableView';
-import { plain, badge, entityActions, type Column, type Row } from '../components/table/types';
+import { badge, entityActions, eventName, plain, type Column, type Row } from '../components/table/types';
 import { Modal } from '../components/Modal';
 import { EntityForm, type FieldDef, type FormValues } from '../components/EntityForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -40,7 +40,6 @@ const FIELDS: FieldDef[] = [
   { key: 'city', label: 'Ville', type: 'text' },
   { key: 'location', label: 'Lieu', type: 'text' },
   { key: 'date', label: 'Date et heure', type: 'datetime-local' },
-  { key: 'icon', label: 'Icône (emoji)', type: 'text', optional: true },
   { key: 'desc', label: 'Description', type: 'text', fullWidth: true, optional: true },
 ];
 
@@ -52,7 +51,7 @@ function fromDatetimeLocal(local: string): string {
   return local.length === 16 ? `${local}:00Z` : local;
 }
 
-const EMPTY = { name: '', category: 'CONCERT' as EventCategory, city: '', location: '', date: '', icon: '🎫', desc: '' };
+const EMPTY = { name: '', category: 'CONCERT' as EventCategory, city: '', location: '', date: '', desc: '' };
 
 interface EventsViewProps {
   filters: TableFilters;
@@ -78,11 +77,13 @@ export function EventsView(props: Readonly<EventsViewProps>) {
   const rows: Row[] = pageSlice.map((ev) => ({
     key: ev.id,
     cells: [
-      plain(`${ev.icon ?? ''} ${ev.name}`),
+      eventName(ev.category, ev.name),
       badge(CATEGORY_LABELS[ev.category], GREEN, 'rgba(22,74,35,0.1)'),
       plain(ev.city),
       plain(new Date(ev.date).toLocaleDateString('fr-FR')),
-      badge(`${ev.tickets.length} type(s)`, GOLD, 'rgba(166,116,29,0.12)'),
+      ev.tickets.length > 0 && ev.tickets.every((t) => t.price === 0)
+        ? badge('Gratuit', '#FFFFFF', '#14B53A')
+        : badge(`${ev.tickets.length} type(s)`, GOLD, 'rgba(166,116,29,0.12)'),
       entityActions(() => setEditing(ev), () => onOpenDetail(ev), () => setDeleting(ev)),
     ],
   }));
@@ -121,7 +122,6 @@ export function EventsView(props: Readonly<EventsViewProps>) {
       city: editing.city,
       location: editing.location,
       date: toDatetimeLocal(editing.date),
-      icon: editing.icon ?? '',
       desc: editing.desc ?? '',
     };
   }

@@ -1,3 +1,5 @@
+import type { EventCategory } from '../../types';
+
 export interface Column {
   label: string;
   /** Grid track: a number (px) or a raw CSS track string like 'minmax(110px,1fr)'. */
@@ -40,21 +42,26 @@ export interface DetailOnlyActionsCell {
   onDetail: () => void;
 }
 
-export interface DetailCancelActionsCell {
-  kind: 'detailCancelActions';
-  onDetail: () => void;
-  onCancel: () => void;
-  cancelDisabled?: boolean;
+export interface RatingCell {
+  kind: 'rating';
+  value: number;
+}
+
+export interface EventNameCell {
+  kind: 'eventName';
+  category: EventCategory;
+  text: string;
 }
 
 export type Cell =
   | PlainCell
+  | RatingCell
+  | EventNameCell
   | BadgeCell
   | RowActionsCell
   | EntityActionsCell
   | EditDetailActionsCell
-  | DetailOnlyActionsCell
-  | DetailCancelActionsCell;
+  | DetailOnlyActionsCell;
 
 export interface Row {
   key: string;
@@ -93,6 +100,10 @@ export function detailOnlyActions(onDetail: () => void): DetailOnlyActionsCell {
   return { kind: 'detailOnlyActions', onDetail };
 }
 
-export function detailCancelActions(onDetail: () => void, onCancel: () => void, cancelDisabled?: boolean): DetailCancelActionsCell {
-  return { kind: 'detailCancelActions', onDetail, onCancel, cancelDisabled };
+export function rating(value: number): RatingCell {
+  return { kind: 'rating', value };
+}
+
+export function eventName(category: EventCategory, text: string): EventNameCell {
+  return { kind: 'eventName', category, text };
 }

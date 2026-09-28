@@ -2,6 +2,7 @@ import { getStaffMember } from '../api/staff';
 import { useCollection } from '../hooks/useCollection';
 import { LoadingState } from '../components/LoadingState';
 import type { StaffAgent } from '../types';
+import { Icon } from '../components/Icon';
 
 interface AgentDetailViewProps {
   agent: StaffAgent;
@@ -51,7 +52,7 @@ export function AgentDetailView(props: Readonly<AgentDetailViewProps>) {
           padding: 0,
         }}
       >
-        ← Retour aux agents
+        <Icon name="back" size={15} /> Retour aux agents
       </button>
 
       <div

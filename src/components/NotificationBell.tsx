@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Icon } from './Icon';
 
 export interface AppNotification {
   id: number;
@@ -50,7 +51,7 @@ export function NotificationBell({ notifications, onMarkAllRead }: NotificationB
           fontSize: 16,
         }}
       >
-        🔔
+        <Icon name="bell" size={18} />
         {unreadCount > 0 && (
           <span
             style={{

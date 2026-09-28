@@ -1,9 +1,8 @@
-import { useState } from 'react';
-import { cancelBooking, getBooking } from '../api/bookings';
+import { getBooking } from '../api/bookings';
 import { useCollection } from '../hooks/useCollection';
-import { useActionError } from '../hooks/useActionError';
 import { LoadingState } from '../components/LoadingState';
 import type { AdminBooking, BookingStatus } from '../types';
+import { Icon } from '../components/Icon';
 
 interface BookingDetailViewProps {
   booking: AdminBooking;
@@ -36,24 +35,11 @@ const STATUS_COLORS: Record<BookingStatus, [string, string]> = {
 
 export function BookingDetailView(props: Readonly<BookingDetailViewProps>) {
   const { booking: initial, onBack } = props;
-  const { data: rows, loading, reload } = useCollection(() => getBooking(initial.id).then((b) => [b]));
-  const [cancelling, setCancelling] = useState(false);
-  const { run, banner } = useActionError();
+  const { data: rows, loading } = useCollection(() => getBooking(initial.id).then((b) => [b]));
 
   if (loading || rows.length === 0) return <LoadingState label="Chargement de la réservation…" />;
   const booking = rows[0];
   const [color, bg] = STATUS_COLORS[booking.status];
-
-  const doCancel = () =>
-    run(async () => {
-      setCancelling(true);
-      try {
-        await cancelBooking(booking.id);
-        reload();
-      } finally {
-        setCancelling(false);
-      }
-    });
 
   return (
     <div className="bo-page">
@@ -74,9 +60,8 @@ export function BookingDetailView(props: Readonly<BookingDetailViewProps>) {
           padding: 0,
         }}
       >
-        ← Retour aux réservations
+        <Icon name="back" size={15} /> Retour aux réservations
       </button>
-      {banner}
 
       <div
         className="bo-hero bo-hero-between"
@@ -115,26 +100,6 @@ export function BookingDetailView(props: Readonly<BookingDetailViewProps>) {
           >
             {STATUS_LABEL[booking.status]}
           </div>
-          {booking.status !== 'CANCELLED' && (
-            <button
-              type="button"
-              onClick={doCancel}
-              disabled={cancelling}
-              style={{
-                padding: '7px 14px',
-                border: '1.5px solid #FAF3EB',
-                background: 'transparent',
-                color: '#FAF3EB',
-                borderRadius: 8,
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: cancelling ? 'not-allowed' : 'pointer',
-                opacity: cancelling ? 0.6 : 1,
-              }}
-            >
-              {cancelling ? 'Annulation…' : 'Annuler la réservation'}
-            </button>
-          )}
         </div>
       </div>
 

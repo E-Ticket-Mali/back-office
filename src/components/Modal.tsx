@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Icon } from './Icon';
 
 type ModalSize = 'sm' | 'md' | 'lg';
 
@@ -92,7 +93,7 @@ export function Modal(props: Readonly<ModalProps>) {
               flexShrink: 0,
             }}
           >
-            ×
+            <Icon name="close" size={16} />
           </button>
         </div>
         {children}

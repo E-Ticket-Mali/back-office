@@ -37,7 +37,6 @@ export function DashboardView() {
     { label: 'Clients', value: stats.totalClients, sub: 'inscrits', color: GREEN },
     { label: 'Agents contrôleurs', value: stats.totalStaff, sub: 'actifs', color: GOLD },
     { label: 'Réservations', value: stats.totalBookings, sub: `${stats.confirmedBookings} confirmées`, color: GOLD },
-    { label: 'Annulations', value: stats.cancelledBookings, sub: `/${stats.totalBookings}`, color: GOLD },
     {
       label: 'Chiffre d’affaires',
       value: `${stats.totalRevenue.toLocaleString('fr-FR')} FCFA`,

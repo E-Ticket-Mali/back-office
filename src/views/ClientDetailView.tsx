@@ -3,6 +3,7 @@ import { getBookings } from '../api/bookings';
 import { useCollection } from '../hooks/useCollection';
 import { LoadingState } from '../components/LoadingState';
 import type { AdminClient, BookingStatus } from '../types';
+import { Icon } from '../components/Icon';
 
 interface ClientDetailViewProps {
   client: AdminClient;
@@ -61,7 +62,7 @@ export function ClientDetailView(props: Readonly<ClientDetailViewProps>) {
           padding: 0,
         }}
       >
-        ← Retour aux clients
+        <Icon name="back" size={15} /> Retour aux clients
       </button>
 
       <div

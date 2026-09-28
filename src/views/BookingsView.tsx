@@ -1,7 +1,7 @@
 import { TableView } from '../components/table/TableView';
-import { plain, badge, detailCancelActions, type Column, type Row } from '../components/table/types';
+import { plain, badge, detailOnlyActions, type Column, type Row } from '../components/table/types';
 import { LoadingState, ErrorState, InlineRefreshHint } from '../components/LoadingState';
-import { getBookings, cancelBooking } from '../api/bookings';
+import { getBookings } from '../api/bookings';
 import { filterRows } from '../utils/filterRows';
 import { useCollection } from '../hooks/useCollection';
 import type { TableFilters } from '../hooks/useTableFilters';
@@ -33,7 +33,7 @@ interface BookingsViewProps {
 }
 
 export function BookingsView({ filters, onOpenDetail }: BookingsViewProps) {
-  const { data: bookings, loading, refreshing, error, reload } = useCollection(getBookings);
+  const { data: bookings, loading, refreshing, error } = useCollection(getBookings);
 
   if (loading) return <LoadingState label="Chargement des réservations…" />;
   if (error) return <ErrorState message={error} />;
@@ -57,14 +57,7 @@ export function BookingsView({ filters, onOpenDetail }: BookingsViewProps) {
         plain(`${b.total.toLocaleString('fr-FR')} FCFA`),
         badge(STATUS_LABEL[b.status], color, bg),
         plain(b.createdAt),
-        detailCancelActions(
-          () => onOpenDetail(b),
-          async () => {
-            await cancelBooking(b.id);
-            reload();
-          },
-          b.status === 'CANCELLED'
-        ),
+        detailOnlyActions(() => onOpenDetail(b)),
       ],
     };
   });

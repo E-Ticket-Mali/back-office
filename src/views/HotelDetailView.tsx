@@ -4,6 +4,7 @@ import { useCollection } from '../hooks/useCollection';
 import { useActionError } from '../hooks/useActionError';
 import { LoadingState } from '../components/LoadingState';
 import type { Hotel, Room, RoomType } from '../types';
+import { Icon } from '../components/Icon';
 
 interface HotelDetailViewProps {
   hotel: Hotel;
@@ -124,7 +125,7 @@ export function HotelDetailView(props: Readonly<HotelDetailViewProps>) {
           padding: 0,
         }}
       >
-        ← Retour aux hôtels
+        <Icon name="back" size={15} /> Retour aux hôtels
       </button>
       {banner}
 
@@ -142,7 +143,10 @@ export function HotelDetailView(props: Readonly<HotelDetailViewProps>) {
         </div>
         <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: 26, fontWeight: 800, color: '#FAF3EB' }}>{hotel.name}</div>
         <div style={{ fontSize: 13, color: 'rgba(250,243,235,0.75)', marginTop: 4 }}>
-          ★ {hotel.rating.toFixed(1)} · {hotel.rooms.length} chambre(s)
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <Icon name="star" size={14} color="#E9D3A8" filled /> {hotel.rating.toFixed(1)}
+          </span>{' '}
+          · {hotel.rooms.length} chambre(s)
         </div>
         {hotel.desc && <div style={{ fontSize: 13, color: 'rgba(250,243,235,0.85)', marginTop: 10 }}>{hotel.desc}</div>}
       </div>

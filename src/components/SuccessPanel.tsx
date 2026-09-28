@@ -1,3 +1,5 @@
+import { Icon } from './Icon';
+
 interface SuccessPanelProps {
   message: string;
   onClose: () => void;
@@ -21,7 +23,7 @@ export function SuccessPanel(props: Readonly<SuccessPanelProps>) {
           marginBottom: 16,
         }}
       >
-        ✓
+        <Icon name="check" size={28} strokeWidth={2.5} />
       </div>
       <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: 15.5, fontWeight: 700, color: '#1F2E35', marginBottom: 24 }}>
         {message}

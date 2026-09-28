@@ -10,8 +10,11 @@ import {
 } from '../api/events';
 import { useCollection } from '../hooks/useCollection';
 import { useActionError } from '../hooks/useActionError';
+import { FreePill, TicketTypePill } from '../components/Pill';
 import { LoadingState } from '../components/LoadingState';
 import type { EventItem, EventTicket, TicketType } from '../types';
+import { Icon } from '../components/Icon';
+import { CategoryIcon } from '../components/Icon';
 
 interface EventDetailViewProps {
   event: EventItem;
@@ -146,7 +149,7 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
           padding: 0,
         }}
       >
-        ← Retour aux événements
+        <Icon name="back" size={15} /> Retour aux événements
       </button>
       {banner}
 
@@ -163,7 +166,7 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
           {event.city} · {event.location}
         </div>
         <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: 26, fontWeight: 800, color: '#FAF3EB' }}>
-          {event.icon} {event.name}
+          <CategoryIcon category={event.category} size={26} /> {event.name}
         </div>
         <div style={{ fontSize: 13, color: 'rgba(250,243,235,0.75)', marginTop: 4 }}>
           {new Date(event.date).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}
@@ -225,7 +228,11 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
               const draft = editingType[tt.id];
               return (
                 <div key={tt.id} style={rowStyle}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1F2E35' }}>{TICKET_LABELS[tt.type]}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <TicketTypePill type={tt.type} />
+                    {tt.price === 0 && <FreePill />}
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1F2E35' }}>{TICKET_LABELS[tt.type]}</span>
+                  </div>
                   {draft !== undefined ? (
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <input
@@ -241,8 +248,8 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
                   ) : (
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                       <span style={{ fontSize: 12, color: '#6B6459' }}>
-                        {tt.price === 0 ? 'Gratuit' : `${tt.price.toLocaleString('fr-FR')} FCFA`} ·{' '}
-                        {tt.capacity === null ? 'illimité' : `${tt.remaining ?? 0}/${tt.capacity} restant(s)`}
+                        {tt.price === 0 ? '0 FCFA' : `${tt.price.toLocaleString('fr-FR')} FCFA`} ·{' '}
+                        {tt.capacity == null ? 'illimité' : `${tt.remaining ?? 0}/${tt.capacity} restant(s)`}
                       </span>
                       <button type="button" onClick={() => startEditType(tt)} style={smallBtn('#164A23')}>
                         Modifier
