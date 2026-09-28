@@ -83,6 +83,7 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
 
   const [newType, setNewType] = useState<TicketType>('STANDARD');
   const [newPrice, setNewPrice] = useState('');
+  const [newCapacity, setNewCapacity] = useState('');
   const [editingType, setEditingType] = useState<Record<string, string>>({});
   const { run, banner } = useActionError();
 
@@ -96,8 +97,13 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
     run(async () => {
       const price = Number(newPrice);
       if (!(price > 0)) throw new Error('Renseignez un prix positif.');
-      await addTicketType(event.id, { type: newType, price });
+      const capacity = newCapacity.trim() === '' ? undefined : Number(newCapacity);
+      if (capacity !== undefined && (!Number.isInteger(capacity) || capacity < 1)) {
+        throw new Error('La capacité doit être un entier d’au moins 1 (laisser vide = illimitée).');
+      }
+      await addTicketType(event.id, { type: newType, price, capacity });
       setNewPrice('');
+      setNewCapacity('');
       reloadEvent();
     });
 
@@ -200,6 +206,14 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
               onChange={(e) => setNewPrice(e.target.value)}
               style={{ ...selectStyle, flex: 1 }}
             />
+            <input
+              type="number"
+              min={1}
+              placeholder="Places (illimité si vide)"
+              value={newCapacity}
+              onChange={(e) => setNewCapacity(e.target.value)}
+              style={{ ...selectStyle, flex: 1 }}
+            />
             <button type="button" onClick={addNewTicketType} style={smallBtn('#164A23')}>
               Ajouter
             </button>
@@ -226,7 +240,10 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
                     </div>
                   ) : (
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                      <span style={{ fontSize: 12, color: '#6B6459' }}>{tt.price.toLocaleString('fr-FR')} FCFA</span>
+                      <span style={{ fontSize: 12, color: '#6B6459' }}>
+                        {tt.price.toLocaleString('fr-FR')} FCFA ·{' '}
+                        {tt.capacity === null ? 'illimité' : `${tt.remaining ?? 0}/${tt.capacity} restant(s)`}
+                      </span>
                       <button type="button" onClick={() => startEditType(tt)} style={smallBtn('#164A23')}>
                         Modifier
                       </button>

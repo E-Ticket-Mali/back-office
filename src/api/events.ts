@@ -22,6 +22,8 @@ export interface EventInput {
 export interface TicketTypeInput {
   type: TicketType;
   price: number;
+  /** Omitted = unlimited. */
+  capacity?: number;
 }
 
 export const getEvents = () => http.get<EventItem[]>('/admin/events');
@@ -32,7 +34,7 @@ export const deleteEvent = (id: string) => http.delete(`/admin/events/${id}`);
 
 export const addTicketType = (eventId: string, data: TicketTypeInput) =>
   http.post<EventTicket>(`/admin/events/${eventId}/ticket-types`, data);
-export const updateTicketType = (eventId: string, ticketTypeId: string, patch: { price: number }) =>
+export const updateTicketType = (eventId: string, ticketTypeId: string, patch: { price?: number; capacity?: number }) =>
   http.patch<EventTicket>(`/admin/events/${eventId}/ticket-types/${ticketTypeId}`, patch);
 export const deleteTicketType = (eventId: string, ticketTypeId: string) =>
   http.delete(`/admin/events/${eventId}/ticket-types/${ticketTypeId}`);

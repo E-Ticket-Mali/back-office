@@ -40,6 +40,10 @@ export interface EventTicket {
   id: string;
   type: TicketType;
   price: number;
+  /** Max tickets for this type; null = unlimited. */
+  capacity: number | null;
+  /** Tickets still available; null = unlimited. */
+  remaining: number | null;
 }
 
 export interface EventItem {
