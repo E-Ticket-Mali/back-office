@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useAuth } from '../AuthContext';
 import { Icon } from '../components/Icon';
 
@@ -21,10 +21,30 @@ const labelStyle: React.CSSProperties = {
   display: 'block',
 };
 
+type Role = 'ADMIN' | 'ORGANIZER';
+
 export function LoginView() {
-  const { login, loading, error } = useAuth();
+  const { loginAsAdmin, loginAsOrganizer, loading, error } = useAuth();
+  const [role, setRole] = useState<Role>('ADMIN');
   const [email, setEmail] = useState('admin@eticket.ml');
   const [password, setPassword] = useState('');
+
+  const tabStyle = (active: boolean): React.CSSProperties => ({
+    flex: 1,
+    textAlign: 'center',
+    padding: '10px 0',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    color: active ? '#164A23' : '#6B6459',
+    borderBottom: active ? '2px solid #164A23' : '2px solid #E7DED0',
+    background: 'transparent',
+    border: 'none',
+    borderBottomWidth: 2,
+    borderBottomStyle: 'solid',
+    borderBottomColor: active ? '#164A23' : '#E7DED0',
+    fontFamily: 'inherit',
+  });
 
   return (
     <div
@@ -78,26 +98,57 @@ export function LoginView() {
         >
           Mali E-Ticket — Back-office
         </div>
-        <div style={{ fontSize: 13, color: '#6B6459', marginBottom: 26, textAlign: 'center' }}>
-          Connectez-vous avec votre compte administrateur.
+        <div style={{ fontSize: 13, color: '#6B6459', marginBottom: 20, textAlign: 'center' }}>
+          Connectez-vous avec votre compte {role === 'ADMIN' ? 'administrateur' : 'organisateur'}.
+        </div>
+
+        <div
+          role="tablist"
+          style={{
+            display: 'flex',
+            marginBottom: 22,
+          }}
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={role === 'ADMIN'}
+            onClick={() => setRole('ADMIN')}
+            style={tabStyle(role === 'ADMIN')}
+          >
+            Administrateur
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={role === 'ORGANIZER'}
+            onClick={() => setRole('ORGANIZER')}
+            style={tabStyle(role === 'ORGANIZER')}
+          >
+            Organisateur
+          </button>
         </div>
 
         <form
           onSubmit={async (e) => {
             e.preventDefault();
             try {
-              await login(email, password);
+              if (role === 'ADMIN') {
+                await loginAsAdmin(email, password);
+              } else {
+                await loginAsOrganizer(email, password);
+              }
             } catch {
               // error surfaced via useAuth().error
             }
           }}
         >
           <div style={{ marginBottom: 16 }}>
-            <label style={labelStyle} htmlFor="admin-email">
+            <label style={labelStyle} htmlFor="login-email">
               Adresse e-mail
             </label>
             <input
-              id="admin-email"
+              id="login-email"
               type="email"
               style={inputStyle}
               value={email}
@@ -106,11 +157,11 @@ export function LoginView() {
             />
           </div>
           <div style={{ marginBottom: 22 }}>
-            <label style={labelStyle} htmlFor="admin-password">
+            <label style={labelStyle} htmlFor="login-password">
               Mot de passe
             </label>
             <input
-              id="admin-password"
+              id="login-password"
               type="password"
               style={inputStyle}
               value={password}
