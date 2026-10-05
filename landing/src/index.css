@@ -135,8 +135,15 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  row-gap: 8px;
   gap: 12px;
   padding: 14px 0;
+}
+
+#fonctionnalites,
+#comment-ca-marche {
+  scroll-margin-top: 72px;
 }
 
 .brand {
@@ -296,6 +303,8 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px;
   padding: 12px 0;
   border-bottom: 1px solid var(--color-border);
 }
