@@ -14,9 +14,16 @@ interface NavItemDef {
   count: number;
 }
 
+interface OrganizerNavItemDef {
+  id: ViewId;
+  label: string;
+  icon: IconName;
+}
+
 interface SidebarProps {
   view: ViewId;
   onNavigate: (view: ViewId) => void;
+  role: 'ADMIN' | 'ORGANIZER';
 }
 
 const EMPTY_COUNTS = {
@@ -78,6 +85,44 @@ function SidebarNavButton(props: SidebarNavButtonProps) {
   );
 }
 
+type SidebarSimpleNavButtonProps = Readonly<{
+  item: OrganizerNavItemDef;
+  active: boolean;
+  collapsed: boolean;
+  onActivate: () => void;
+}>;
+
+function SidebarSimpleNavButton(props: SidebarSimpleNavButtonProps) {
+  const { item, active, collapsed, onActivate } = props;
+  return (
+    <button
+      type="button"
+      data-testid={`nav-${item.id}`}
+      onClick={onActivate}
+      title={collapsed ? item.label : undefined}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: collapsed ? 'center' : 'flex-start',
+        gap: 10,
+        width: '100%',
+        padding: collapsed ? '9px 0' : '8px 12px',
+        borderRadius: 8,
+        cursor: 'pointer',
+        fontSize: 13,
+        marginBottom: 2,
+        background: active ? 'rgba(250,243,235,0.14)' : 'transparent',
+        color: active ? '#FAF3EB' : 'rgba(250,243,235,0.75)',
+        border: 'none',
+        textAlign: 'left',
+      }}
+    >
+      <Icon name={item.icon} size={collapsed ? 18 : 16} />
+      {!collapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>}
+    </button>
+  );
+}
+
 type SidebarDashboardButtonProps = Readonly<{
   active: boolean;
   collapsed: boolean;
@@ -118,7 +163,7 @@ function SidebarDashboardButton(props: SidebarDashboardButtonProps) {
 }
 
 export function Sidebar(props: Readonly<SidebarProps>) {
-  const { view, onNavigate } = props;
+  const { view, onNavigate, role } = props;
   const [counts, setCounts] = useState(EMPTY_COUNTS);
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -129,6 +174,7 @@ export function Sidebar(props: Readonly<SidebarProps>) {
   });
 
   useEffect(() => {
+    if (role !== 'ADMIN') return;
     Promise.all([getHotels(), getEvents(), getBookings(), getClients(), getStaff()]).then(
       ([hotels, events, bookings, clients, agents]) => {
         setCounts({
@@ -140,7 +186,7 @@ export function Sidebar(props: Readonly<SidebarProps>) {
         });
       }
     );
-  }, []);
+  }, [role]);
 
   const toggleCollapsed = () => {
     setCollapsed((v) => {
@@ -163,6 +209,10 @@ export function Sidebar(props: Readonly<SidebarProps>) {
     { id: 'clients', label: 'Clients', icon: 'client', count: counts.clients },
     { id: 'agents', label: 'Agents contrôleurs', icon: 'agent', count: counts.agents },
   ];
+  const organizerNav: OrganizerNavItemDef[] = [
+    { id: 'organizerEvents', label: 'Mes événements', icon: 'event' },
+    { id: 'organizerAgents', label: 'Agents', icon: 'agent' },
+  ];
 
   const groupLabelStyle: React.CSSProperties = {
     fontFamily: "'Poppins',sans-serif",
@@ -174,7 +224,8 @@ export function Sidebar(props: Readonly<SidebarProps>) {
     textAlign: collapsed ? 'center' : 'left',
   };
 
-  const dashboardActive = view === 'dashboard';
+  const dashboardId: ViewId = role === 'ADMIN' ? 'dashboard' : 'organizerDashboard';
+  const dashboardActive = view === dashboardId;
 
   return (
     <div
@@ -246,17 +297,31 @@ export function Sidebar(props: Readonly<SidebarProps>) {
         </div>
 
         <div style={{ padding: collapsed ? '14px 8px 10px' : '14px 10px 10px', flex: 1 }}>
-          <SidebarDashboardButton active={dashboardActive} collapsed={collapsed} onActivate={() => onNavigate('dashboard')} />
+          <SidebarDashboardButton active={dashboardActive} collapsed={collapsed} onActivate={() => onNavigate(dashboardId)} />
 
-          <div style={groupLabelStyle}>{collapsed ? '•••' : 'CATALOGUE'}</div>
-          {catalogueNav.map((item) => (
-            <SidebarNavButton key={item.id} item={item} active={view === item.id} collapsed={collapsed} onActivate={() => onNavigate(item.id)} />
-          ))}
+          {role === 'ADMIN' ? (
+            <>
+              <div style={groupLabelStyle}>{collapsed ? '•••' : 'CATALOGUE'}</div>
+              {catalogueNav.map((item) => (
+                <SidebarNavButton key={item.id} item={item} active={view === item.id} collapsed={collapsed} onActivate={() => onNavigate(item.id)} />
+              ))}
 
-          <div style={groupLabelStyle}>{collapsed ? '•••' : 'OPÉRATIONS'}</div>
-          {opsNav.map((item) => (
-            <SidebarNavButton key={item.id} item={item} active={view === item.id} collapsed={collapsed} onActivate={() => onNavigate(item.id)} />
-          ))}
+              <div style={groupLabelStyle}>{collapsed ? '•••' : 'OPÉRATIONS'}</div>
+              {opsNav.map((item) => (
+                <SidebarNavButton key={item.id} item={item} active={view === item.id} collapsed={collapsed} onActivate={() => onNavigate(item.id)} />
+              ))}
+            </>
+          ) : (
+            organizerNav.map((item) => (
+              <SidebarSimpleNavButton
+                key={item.id}
+                item={item}
+                active={view === item.id}
+                collapsed={collapsed}
+                onActivate={() => onNavigate(item.id)}
+              />
+            ))
+          )}
         </div>
 
         {!collapsed && (

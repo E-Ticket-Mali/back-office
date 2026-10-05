@@ -15,6 +15,7 @@ interface OrganizerSession {
 }
 
 export type Session = AdminSession | OrganizerSession;
+export type Role = Session['role'];
 
 interface AuthContextValue {
   session: Session | null;

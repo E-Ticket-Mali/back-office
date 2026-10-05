@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth, type Session } from '../AuthContext';
+import { useAuth, type Role } from '../AuthContext';
 import { Icon } from '../components/Icon';
 
 const inputStyle: React.CSSProperties = {
@@ -20,8 +20,6 @@ const labelStyle: React.CSSProperties = {
   marginBottom: 6,
   display: 'block',
 };
-
-type Role = Session['role'];
 
 export function LoginView() {
   const { loginAsAdmin, loginAsOrganizer, loading, error } = useAuth();

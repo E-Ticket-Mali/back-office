@@ -9,7 +9,23 @@ export type ViewId =
   | 'clients'
   | 'clientDetail'
   | 'agents'
-  | 'agentDetail';
+  | 'agentDetail'
+  | 'organizerDashboard'
+  | 'organizerEvents'
+  | 'organizerAgents';
+
+/** Single source of truth for which ViewIds belong to which role, and each role's landing
+ * view — consumed by both the initial-state derivation and the stale-view correction in
+ * App.tsx, so the two can never drift out of sync with opposite polarity. */
+export const ADMIN_VIEWS = new Set<ViewId>([
+  'dashboard', 'hotels', 'hotelDetail', 'events', 'eventDetail',
+  'bookings', 'bookingDetail', 'clients', 'clientDetail', 'agents', 'agentDetail',
+]);
+export const ORGANIZER_VIEWS = new Set<ViewId>(['organizerDashboard', 'organizerEvents', 'organizerAgents']);
+
+export function defaultViewForRole(role: 'ADMIN' | 'ORGANIZER'): ViewId {
+  return role === 'ADMIN' ? 'dashboard' : 'organizerDashboard';
+}
 
 export type RoomType = 'SINGLE' | 'DOUBLE' | 'SUITE';
 export type EventCategory = 'HIPPIQUE' | 'CONCERT' | 'SPORT' | 'CONFERENCE' | 'CINEMA' | 'THEATRE';
