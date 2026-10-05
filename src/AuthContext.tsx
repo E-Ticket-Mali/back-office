@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { adminLogin, organizerLogin } from './api/auth';
 import { clearToken, getToken, registerUnauthorizedHandler, setToken } from './api/token';
 
@@ -29,12 +29,25 @@ const SESSION_KEY = 'eticket-back-office.session';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function isValidSession(value: unknown): value is Session {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+  return (v.role === 'ADMIN' || v.role === 'ORGANIZER') && typeof v.name === 'string' && typeof v.email === 'string';
+}
+
 function readStoredSession(): Session | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Session;
-    if (parsed.role !== 'ADMIN' && parsed.role !== 'ORGANIZER') return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!isValidSession(parsed)) {
+      // Malformed or pre-role-discriminant session (or a tampered one): never leave a token
+      // sitting in storage with no matching session — that's an authenticated-but-logged-out
+      // state. Clear both so the user cleanly falls back to the login screen.
+      clearToken();
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
     return parsed;
   } catch {
     return null;

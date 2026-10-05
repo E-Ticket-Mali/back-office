@@ -1,5 +1,5 @@
-﻿import { useState } from 'react';
-import { useAuth } from '../AuthContext';
+import { useState } from 'react';
+import { useAuth, type Session } from '../AuthContext';
 import { Icon } from '../components/Icon';
 
 const inputStyle: React.CSSProperties = {
@@ -21,13 +21,23 @@ const labelStyle: React.CSSProperties = {
   display: 'block',
 };
 
-type Role = 'ADMIN' | 'ORGANIZER';
+type Role = Session['role'];
 
 export function LoginView() {
   const { loginAsAdmin, loginAsOrganizer, loading, error } = useAuth();
   const [role, setRole] = useState<Role>('ADMIN');
   const [email, setEmail] = useState('admin@eticket.ml');
   const [password, setPassword] = useState('');
+  // The AuthContext's `error` is only cleared at the start of the next login attempt, not when
+  // the user switches tabs without submitting — track which role the current error belongs to
+  // so a stale admin-login error doesn't linger under the organizer tab (and vice versa).
+  const [errorRole, setErrorRole] = useState<Role | null>(null);
+
+  const switchRole = (next: Role) => {
+    setRole(next);
+    setEmail(next === 'ADMIN' ? 'admin@eticket.ml' : '');
+    setPassword('');
+  };
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
     flex: 1,
@@ -113,7 +123,8 @@ export function LoginView() {
             type="button"
             role="tab"
             aria-selected={role === 'ADMIN'}
-            onClick={() => setRole('ADMIN')}
+            disabled={loading}
+            onClick={() => switchRole('ADMIN')}
             style={tabStyle(role === 'ADMIN')}
           >
             Administrateur
@@ -122,7 +133,8 @@ export function LoginView() {
             type="button"
             role="tab"
             aria-selected={role === 'ORGANIZER'}
-            onClick={() => setRole('ORGANIZER')}
+            disabled={loading}
+            onClick={() => switchRole('ORGANIZER')}
             style={tabStyle(role === 'ORGANIZER')}
           >
             Organisateur
@@ -132,6 +144,7 @@ export function LoginView() {
         <form
           onSubmit={async (e) => {
             e.preventDefault();
+            setErrorRole(role);
             try {
               if (role === 'ADMIN') {
                 await loginAsAdmin(email, password);
@@ -169,7 +182,7 @@ export function LoginView() {
             />
           </div>
 
-          {error && (
+          {error && errorRole === role && (
             <div
               style={{
                 marginBottom: 16,
