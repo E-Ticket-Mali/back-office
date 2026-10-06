@@ -7,14 +7,18 @@ export async function uiLogin(page: Page, email: string, password: string) {
   await page.locator('#login-email').fill(email);
   await page.locator('#login-password').fill(password);
   await page.locator('button[type="submit"]').click();
-  await expect(page.getByTestId('nav-group-Finances')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible();
 }
 
-/** Clique une entrée de la sidebar en dépliant son groupe si nécessaire. */
-export async function navTo(page: Page, group: string | null, testId: string) {
-  const item = page.getByTestId(testId);
-  if (group && !(await item.isVisible())) await page.getByTestId(`nav-group-${group}`).click();
-  await item.click();
+/** Ouvre une page depuis la sidebar (un seul niveau de menu). */
+export async function navTo(page: Page, view: string) {
+  await page.getByTestId(`nav-${view}`).click();
+  await expect(page.getByTestId(`nav-${view}`)).toHaveAttribute('aria-current', 'page');
+}
+
+/** Onglet de page ou de filtre, par son libellé (le compteur éventuel est ignoré). */
+export function tab(page: Page, label: string) {
+  return page.getByRole('tab', { name: new RegExp(`^${label}(\\s*\\d+)?$`) });
 }
 
 type Fixtures = {

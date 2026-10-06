@@ -1,6 +1,7 @@
 /** Accès direct à l'API pour préparer les données des tests (arrange), l'UI servant à l'act/assert. */
 
-export const API_URL = process.env.E2E_API_URL ?? 'http://localhost:5000/api/v1';
+// 127.0.0.1 plutôt que localhost : sous Windows, Node tente d'abord ::1 et la connexion peut caler.
+export const API_URL = process.env.E2E_API_URL ?? 'http://127.0.0.1:5000/api/v1';
 
 /** Compte admin de démo seedé par le backend (application.yml : DEMO_ADMIN_EMAIL / DEMO_ADMIN_PASSWORD). */
 export const ADMIN = {
@@ -75,7 +76,7 @@ export interface TestEvent {
 /** Crée un événement (brouillon) avec un tarif ; `submit`/`approve` pour avancer dans le workflow. */
 export async function createOrganizerEvent(
   organizer: TestOrganizer,
-  opts: { name?: string; submit?: boolean; approveWith?: string; capacity?: number } = {},
+  opts: { name?: string; submit?: boolean; approveWith?: string; publish?: boolean; capacity?: number } = {},
 ): Promise<TestEvent> {
   const name = opts.name ?? `E2E Concert ${Date.now()}`;
   const date = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().slice(0, 19) + 'Z';
@@ -95,10 +96,30 @@ export async function createOrganizerEvent(
   if (opts.approveWith) {
     await call(`/admin/events/${event.id}/approve`, { method: 'POST', token: opts.approveWith });
   }
+  // L'approbation ne publie plus : la mise en ligne est une décision de l'organisateur.
+  if (opts.approveWith && opts.publish) {
+    await call(`/organizer/events/${event.id}/publish`, { method: 'POST', token: organizer.token });
+  }
   return { id: event.id, name };
 }
 
 export async function createStaff(organizer: TestOrganizer, agentName: string): Promise<{ id: string; staffCode: string }> {
   const staffCode = `E2E-${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 100)}`;
   return call('/organizer/staff', { method: 'POST', token: organizer.token, body: JSON.stringify({ staffCode, agentName }) });
+}
+
+export async function getEventImageUrl(token: string, eventId: string, role: 'admin' | 'organizer'): Promise<string | null> {
+  const path = role === 'admin' ? `/admin/events/${eventId}` : `/organizer/events/${eventId}`;
+  const event = await call<{ imageUrl: string | null }>(path, { token });
+  return event.imageUrl;
+}
+
+export async function findOrganizerEventByName(organizer: TestOrganizer, name: string): Promise<{ id: string; imageUrl: string | null } | undefined> {
+  const events = await call<{ id: string; name: string; imageUrl: string | null }[]>('/organizer/events', { token: organizer.token });
+  return events.find((e) => e.name === name);
+}
+
+export async function findAdminEventByName(adminToken: string, name: string): Promise<{ id: string; imageUrl: string | null } | undefined> {
+  const events = await call<{ id: string; name: string; imageUrl: string | null }[]>('/admin/events', { token: adminToken });
+  return events.find((e) => e.name === name);
 }

@@ -35,11 +35,21 @@ export interface EditDetailActionsCell {
   kind: 'editDetailActions';
   onEdit: () => void;
   onDetail: () => void;
+  extra?: RowExtraAction;
+}
+
+/** Action métier supplémentaire d'une ligne (ex. « Publier »), affichée en premier. */
+export interface RowExtraAction {
+  label: string;
+  onClick: () => void;
+  /** Mise en avant (bouton plein) plutôt que contour. */
+  primary?: boolean;
 }
 
 export interface DetailOnlyActionsCell {
   kind: 'detailOnlyActions';
   onDetail: () => void;
+  extra?: RowExtraAction;
 }
 
 export interface RatingCell {
@@ -92,12 +102,12 @@ export function entityActions(onEdit: () => void, onDetail: () => void, onDelete
   return { kind: 'entityActions', onEdit, onDetail, onDelete };
 }
 
-export function editDetailActions(onEdit: () => void, onDetail: () => void): EditDetailActionsCell {
-  return { kind: 'editDetailActions', onEdit, onDetail };
+export function editDetailActions(onEdit: () => void, onDetail: () => void, extra?: RowExtraAction): EditDetailActionsCell {
+  return { kind: 'editDetailActions', onEdit, onDetail, extra };
 }
 
-export function detailOnlyActions(onDetail: () => void): DetailOnlyActionsCell {
-  return { kind: 'detailOnlyActions', onDetail };
+export function detailOnlyActions(onDetail: () => void, extra?: RowExtraAction): DetailOnlyActionsCell {
+  return { kind: 'detailOnlyActions', onDetail, extra };
 }
 
 export function rating(value: number): RatingCell {

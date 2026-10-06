@@ -9,13 +9,15 @@ interface ImagePickerProps {
   /** Square side in px — the same component is used for a large event cover and a small
    * ticket-type thumbnail. */
   size?: number;
+  /** Libellé du bouton de retrait — pour une cover d'événement, le retrait remet le logo de la catégorie. */
+  clearLabel?: string;
 }
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg'];
 
 export function ImagePicker(props: Readonly<ImagePickerProps>) {
-  const { imageUrl, onUpload, onSelectPreset, onClear, size = 120 } = props;
+  const { imageUrl, onUpload, onSelectPreset, onClear, size = 120, clearLabel = "Retirer l'image" } = props;
   const [presets, setPresets] = useState<PresetLogo[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -164,7 +166,7 @@ export function ImagePicker(props: Readonly<ImagePickerProps>) {
                 cursor: busy ? 'not-allowed' : 'pointer',
               }}
             >
-              Retirer l'image
+              {clearLabel}
             </button>
           )}
 

@@ -34,6 +34,8 @@ interface EntityFormProps {
   onCancel: () => void;
   /** Nombre de colonnes de la grille. Par défaut 2 si le formulaire compte plus de 4 champs, sinon 1. */
   columns?: 1 | 2;
+  /** Contenu libre rendu sous les champs (ex. image de couverture), avec accès aux valeurs courantes. */
+  renderExtra?: (values: FormValues) => React.ReactNode;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -149,7 +151,7 @@ function renderControl(field: FieldDef, values: FormValues, setField: SetField, 
 }
 
 export function EntityForm(props: Readonly<EntityFormProps>) {
-  const { fields, initialValues, submitLabel, onSubmit, onCancel, columns } = props;
+  const { fields, initialValues, submitLabel, onSubmit, onCancel, columns, renderExtra } = props;
   const [values, setValues] = useState<FormValues>(initialValues as FormValues);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -189,6 +191,7 @@ export function EntityForm(props: Readonly<EntityFormProps>) {
         }}
       >
         {visibleFields.map((field) => renderField(field, values, setField, colCount))}
+        {renderExtra && <div style={{ gridColumn: `span ${colCount}` }}>{renderExtra(values)}</div>}
       </div>
       {error && (
         <div

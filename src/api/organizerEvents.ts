@@ -26,6 +26,10 @@ export const createOrganizerEvent = (data: OrganizerEventInput) =>
 export const updateOrganizerEvent = (id: string, patch: Partial<OrganizerEventInput>) =>
   http.patch<OrganizerEventItem>(`/organizer/events/${id}`, patch);
 export const submitOrganizerEvent = (id: string) => http.post<OrganizerEventItem>(`/organizer/events/${id}/submit`);
+/** Validé (APPROVED) → en ligne (PUBLISHED). */
+export const publishOrganizerEvent = (id: string) => http.post<OrganizerEventItem>(`/organizer/events/${id}/publish`);
+/** En ligne → validé, retiré du catalogue ; les billets vendus restent valides. */
+export const unpublishOrganizerEvent = (id: string) => http.post<OrganizerEventItem>(`/organizer/events/${id}/unpublish`);
 
 export const addOrganizerTicketType = (eventId: string, data: OrganizerTicketTypeInput) =>
   http.post<EventTicket>(`/organizer/events/${eventId}/ticket-types`, data);

@@ -19,6 +19,8 @@ interface TableViewProps {
   onRegionFilter?: (e: ChangeEvent<HTMLSelectElement>) => void;
   onStatusFilter?: (e: ChangeEvent<HTMLSelectElement>) => void;
   onCreate?: () => void;
+  /** Libellé du bouton de création — par défaut « + Nouveau ». */
+  createLabel?: string;
   /** Contenu additionnel affiché juste avant le bouton "+ Nouveau" (ex: bascule de vue). */
   headerExtra?: ReactNode;
 }
@@ -47,6 +49,7 @@ export function TableView({
   onRegionFilter,
   onStatusFilter,
   onCreate,
+  createLabel = '+ Nouveau',
   headerExtra,
 }: Readonly<TableViewProps>) {
   const gridCols = gridTemplateFor(columns);
@@ -95,7 +98,7 @@ export function TableView({
                 cursor: 'pointer',
               }}
             >
-              + Nouveau
+              {createLabel}
             </button>
           )}
         </div>

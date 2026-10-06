@@ -5,7 +5,21 @@ import { Modal } from '../components/Modal';
 import { EntityForm, type FieldDef, type FormValues } from '../components/EntityForm';
 import { SuccessPanel } from '../components/SuccessPanel';
 import { LoadingState, ErrorState, InlineRefreshHint } from '../components/LoadingState';
-import { getOrganizerEvents, createOrganizerEvent, updateOrganizerEvent, type OrganizerEventInput } from '../api/organizerEvents';
+import {
+  getOrganizerEvents,
+  createOrganizerEvent,
+  updateOrganizerEvent,
+  uploadOrganizerEventImage,
+  publishOrganizerEvent,
+  unpublishOrganizerEvent,
+  setOrganizerEventImagePreset,
+  type OrganizerEventInput,
+} from '../api/organizerEvents';
+import { CoverField } from '../components/CoverField';
+import { Tabs } from '../components/ui';
+import { PublishDialog } from '../components/PublishDialog';
+import type { RowExtraAction } from '../components/table/types';
+import { applyCover, initialCover, type CoverChoice } from '../utils/cover';
 import { filterRows } from '../utils/filterRows';
 import { useCollection } from '../hooks/useCollection';
 import type { TableFilters } from '../hooks/useTableFilters';
@@ -19,7 +33,7 @@ const COLUMNS: Column[] = [
   { label: 'Statut', width: 150 },
   { label: 'Ville', width: 110 },
   { label: 'Date', width: 110 },
-  { label: 'Actions', width: 120 },
+  { label: 'Actions', width: 230 },
 ];
 
 const CATEGORIES: EventCategory[] = ['HIPPIQUE', 'CONCERT', 'SPORT', 'CONFERENCE', 'CINEMA', 'THEATRE'];
@@ -35,6 +49,7 @@ const CATEGORY_LABELS: Record<EventCategory, string> = {
 const STATUS_LABEL: Record<OrganizerEventStatus, string> = {
   DRAFT: 'Brouillon',
   PENDING_APPROVAL: 'En attente',
+  APPROVED: 'Validé (non publié)',
   PUBLISHED: 'Publié',
   REJECTED: 'Rejeté',
 };
@@ -42,6 +57,7 @@ const STATUS_LABEL: Record<OrganizerEventStatus, string> = {
 const STATUS_COLOR: Record<OrganizerEventStatus, [string, string]> = {
   DRAFT: [GOLD, 'rgba(166,116,29,0.12)'],
   PENDING_APPROVAL: ['#9A7800', 'rgba(252,209,22,0.2)'],
+  APPROVED: ['#1D5C8A', 'rgba(29,92,138,0.12)'],
   PUBLISHED: [GREEN, 'rgba(22,74,35,0.1)'],
   REJECTED: ['#CE1126', 'rgba(206,17,38,0.12)'],
 };
@@ -72,31 +88,54 @@ const EMPTY = { name: '', category: 'CONCERT' as EventCategory, city: '', locati
 
 interface OrganizerEventsViewProps {
   filters: TableFilters;
-  /** Sous-menu choisi : un statut (filtre), 'CREATE' (ouvre le formulaire) ou null (tous). */
+  /** Statut présélectionné (lien depuis le tableau de bord) ; null = tous. */
   section?: string | null;
   onOpenDetail: (event: OrganizerEventItem) => void;
-  /** Appelé à la fermeture du formulaire ouvert via « Créer un événement ». */
-  onCreateHandled?: () => void;
 }
 
-const STATUS_SECTIONS = new Set<string>(['DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'REJECTED']);
+type StatusTab = 'ALL' | OrganizerEventStatus;
+const STATUS_TABS: StatusTab[] = ['ALL', 'DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED'];
+const TAB_LABEL: Record<StatusTab, string> = {
+  ALL: 'Tous',
+  DRAFT: 'Brouillons',
+  PENDING_APPROVAL: 'En attente de validation',
+  APPROVED: 'Validés, à publier',
+  PUBLISHED: 'Publiés',
+  REJECTED: 'Rejetés',
+};
 
 export function OrganizerEventsView(props: Readonly<OrganizerEventsViewProps>) {
-  const { filters, section = null, onOpenDetail, onCreateHandled } = props;
+  const { filters, section = null, onOpenDetail } = props;
   const { data: events, loading, refreshing, error, reload } = useCollection(getOrganizerEvents);
-  const [editing, setEditing] = useState<OrganizerEventItem | 'new' | null>(section === 'CREATE' ? 'new' : null);
-  const statusFilter = section && STATUS_SECTIONS.has(section) ? (section as OrganizerEventStatus) : null;
+  const [editing, setEditing] = useState<OrganizerEventItem | 'new' | null>(null);
+  const [publishing, setPublishing] = useState<{ event: OrganizerEventItem; mode: 'publish' | 'unpublish' } | null>(null);
+  const [statusTab, setStatusTab] = useState<StatusTab>(
+    STATUS_TABS.includes(section as StatusTab) ? (section as StatusTab) : 'ALL',
+  );
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [cover, setCover] = useState<CoverChoice>(() => initialCover(EMPTY.category));
 
   if (loading) return <LoadingState label="Chargement des événements…" />;
   if (error) return <ErrorState message={error} />;
 
-  const scoped = statusFilter ? events.filter((ev) => ev.status === statusFilter) : events;
+  const scoped = statusTab === 'ALL' ? events : events.filter((ev) => ev.status === statusTab);
+  const tabs = STATUS_TABS.map((id) => ({
+    id,
+    label: TAB_LABEL[id],
+    count: id === 'ALL' ? events.length : events.filter((ev) => ev.status === id).length,
+  }));
   const filtered = filterRows(scoped, ['name', 'city', 'location'], filters.search, '', '');
   const totalRows = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
   const page = Math.min(filters.page, totalPages);
   const pageSlice = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  /** Publier / Dépublier : l'action principale d'un événement validé, directement depuis la liste. */
+  const publicationAction = (ev: OrganizerEventItem): RowExtraAction | undefined => {
+    if (ev.status === 'APPROVED') return { label: 'Publier', primary: true, onClick: () => setPublishing({ event: ev, mode: 'publish' }) };
+    if (ev.status === 'PUBLISHED') return { label: 'Dépublier', onClick: () => setPublishing({ event: ev, mode: 'unpublish' }) };
+    return undefined;
+  };
 
   const rows: Row[] = pageSlice.map((ev) => ({
     key: ev.id,
@@ -106,8 +145,8 @@ export function OrganizerEventsView(props: Readonly<OrganizerEventsViewProps>) {
       plain(ev.city),
       plain(new Date(ev.date).toLocaleDateString('fr-FR')),
       isOrganizerEventEditable(ev.status)
-        ? editDetailActions(() => setEditing(ev), () => onOpenDetail(ev))
-        : detailOnlyActions(() => onOpenDetail(ev)),
+        ? editDetailActions(() => setEditing(ev), () => onOpenDetail(ev), publicationAction(ev))
+        : detailOnlyActions(() => onOpenDetail(ev), publicationAction(ev)),
     ],
   }));
 
@@ -117,8 +156,12 @@ export function OrganizerEventsView(props: Readonly<OrganizerEventsViewProps>) {
       await updateOrganizerEvent(editing.id, payload);
       setSuccessMsg(`Événement ${payload.name} mis à jour avec succès`);
     } else {
-      await createOrganizerEvent(payload);
-      setSuccessMsg(`Événement ${payload.name} créé avec succès (brouillon)`);
+      const created = await createOrganizerEvent(payload);
+      const warning = await applyCover(created.id, payload.category, cover, {
+        upload: uploadOrganizerEventImage,
+        preset: setOrganizerEventImagePreset,
+      });
+      setSuccessMsg(warning ? `Événement ${payload.name} créé (brouillon). ${warning}` : `Événement ${payload.name} créé avec succès (brouillon)`);
     }
     reload();
   };
@@ -126,7 +169,6 @@ export function OrganizerEventsView(props: Readonly<OrganizerEventsViewProps>) {
   const closeModal = () => {
     setEditing(null);
     setSuccessMsg(null);
-    if (section === 'CREATE') onCreateHandled?.();
   };
 
   let initialValues = EMPTY;
@@ -152,7 +194,16 @@ export function OrganizerEventsView(props: Readonly<OrganizerEventsViewProps>) {
   return (
     <>
       {refreshing && <InlineRefreshHint />}
+      <Tabs
+        tabs={tabs}
+        active={statusTab}
+        onChange={(id) => {
+          setStatusTab(id);
+          filters.setPage(1);
+        }}
+      />
       <TableView
+        createLabel="+ Nouvel événement"
         columns={COLUMNS}
         rows={rows}
         totalRows={totalRows}
@@ -160,8 +211,25 @@ export function OrganizerEventsView(props: Readonly<OrganizerEventsViewProps>) {
         totalPages={totalPages}
         onPrevPage={() => filters.setPage(Math.max(1, page - 1))}
         onNextPage={() => filters.setPage(Math.min(totalPages, page + 1))}
-        onCreate={() => setEditing('new')}
+        onCreate={() => {
+          setCover(initialCover(EMPTY.category));
+          setEditing('new');
+        }}
       />
+
+      {publishing && (
+        <PublishDialog
+          mode={publishing.mode}
+          eventName={publishing.event.name}
+          onCancel={() => setPublishing(null)}
+          onConfirm={async () => {
+            if (publishing.mode === 'publish') await publishOrganizerEvent(publishing.event.id);
+            else await unpublishOrganizerEvent(publishing.event.id);
+            setPublishing(null);
+            reload();
+          }}
+        />
+      )}
 
       {editing && (
         <Modal title={modalTitle} onClose={closeModal} size="md">
@@ -174,6 +242,11 @@ export function OrganizerEventsView(props: Readonly<OrganizerEventsViewProps>) {
               submitLabel={editing === 'new' ? 'Créer' : 'Enregistrer'}
               onSubmit={submit}
               onCancel={closeModal}
+              renderExtra={
+                editing === 'new'
+                  ? (values) => <CoverField category={String(values.category)} value={cover} onChange={setCover} />
+                  : undefined
+              }
             />
           )}
         </Modal>

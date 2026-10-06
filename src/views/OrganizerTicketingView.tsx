@@ -12,13 +12,14 @@ import type { EventTicket, OrganizerEventItem } from '../types';
 
 interface OrganizerTicketingViewProps {
   filters: TableFilters;
-  /** null = Billets & tarifs · 'sales' · 'manifests' · 'exports' (sous-menus de la sidebar). */
+  /** Onglet : null = Billets & tarifs · 'sales' = Ventes · 'exports' = Manifestes & exports. */
   section?: string | null;
 }
 
 const STATUS_LABEL: Record<OrganizerEventItem['status'], string> = {
   DRAFT: 'Brouillon',
   PENDING_APPROVAL: 'En attente',
+  APPROVED: 'Validé (non publié)',
   PUBLISHED: 'Publié',
   REJECTED: 'Rejeté',
 };
@@ -134,30 +135,6 @@ function SalesSection({ events, ticketsSold }: Readonly<{ events: OrganizerEvent
   );
 }
 
-function ManifestsSection({ events, onExport }: Readonly<{ events: OrganizerEventItem[]; onExport: (id: string) => void }>) {
-  const published = events.filter((e) => e.status === 'PUBLISHED');
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ ...mutedText, fontSize: 12.5 }}>
-        Le manifeste liste chaque billet émis (code, tarif, porteur, statut de scan) — c'est la liste remise aux agents contrôleurs.
-      </div>
-      {published.length === 0 && <div style={mutedText}>Aucun événement publié : pas encore de manifeste.</div>}
-      {published.map((event) => (
-        <div key={event.id} className="bo-card" style={cardStyle}>
-          <EventHeader
-            event={event}
-            action={
-              <button type="button" onClick={() => onExport(event.id)} style={outlineButtonStyle}>
-                Télécharger le manifeste
-              </button>
-            }
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function ExportsSection({ events, onExport, onExportAll }: Readonly<{
   events: OrganizerEventItem[];
   onExport: (id: string) => void;
@@ -168,11 +145,13 @@ function ExportsSection({ events, onExport, onExportAll }: Readonly<{
     <div className="bo-card" style={cardStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <div>
-          <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: 14, fontWeight: 700 }}>Exports CSV</div>
-          <div style={{ ...mutedText, fontSize: 12 }}>Un fichier par événement publié.</div>
+          <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: 14, fontWeight: 700 }}>Manifestes</div>
+          <div style={{ ...mutedText, fontSize: 12 }}>
+            Un fichier CSV par événement publié : chaque billet émis (code, tarif, porteur, statut de scan) — la liste remise aux agents.
+          </div>
         </div>
         <button type="button" disabled={exportable.length === 0} onClick={onExportAll} style={{ ...primaryButtonStyle, opacity: exportable.length === 0 ? 0.5 : 1 }}>
-          Tout exporter ({exportable.length})
+          Tout télécharger ({exportable.length})
         </button>
       </div>
       {exportable.length === 0 && <div style={mutedText}>Aucun événement publié à exporter.</div>}
@@ -183,7 +162,7 @@ function ExportsSection({ events, onExport, onExportAll }: Readonly<{
               <strong>{event.name}</strong> <span style={mutedText}>· {new Date(event.date).toLocaleDateString('fr-FR')}</span>
             </span>
             <button type="button" onClick={() => onExport(event.id)} style={{ ...outlineButtonStyle, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <Icon name="download" size={14} /> CSV
+              <Icon name="download" size={14} /> Télécharger
             </button>
           </div>
         ))}
@@ -215,7 +194,6 @@ export function OrganizerTicketingView({ filters, section = null }: Readonly<Org
 
   let content: React.ReactNode;
   if (section === 'sales') content = <SalesSection events={visibleEvents} ticketsSold={dashRows[0]?.ticketsSold ?? null} />;
-  else if (section === 'manifests') content = <ManifestsSection events={visibleEvents} onExport={onExport} />;
   else if (section === 'exports') content = <ExportsSection events={visibleEvents} onExport={onExport} onExportAll={onExportAll} />;
   else content = <PricingSection events={visibleEvents} />;
 

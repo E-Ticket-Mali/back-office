@@ -32,6 +32,7 @@ import { AdminCommissionsView } from './views/AdminCommissionsView';
 import { AdminPayoutsView } from './views/AdminPayoutsView';
 import { AdminNotificationsView } from './views/AdminNotificationsView';
 import { useAuth } from './AuthContext';
+import { Tabs } from './components/ui';
 import { useTableFilters } from './hooks/useTableFilters';
 import { ADMIN_VIEWS, defaultViewForRole, ORGANIZER_VIEWS } from './types';
 import type {
@@ -66,42 +67,66 @@ const TITLES: Record<ViewId, string> = {
   agentDetail: '',
   organizersAdmin: 'Organisateurs',
   organizerAdminDetail: '',
-  security: 'Paramètres / Profil',
+  security: 'Paramètres',
   organizerDashboard: 'Tableau de bord',
-  organizerEvents: 'Mes événements',
+  organizerEvents: 'Événements',
   organizerEventDetail: '',
-  organizerAgents: 'Agents',
+  organizerAgents: 'Agents contrôleurs',
   organizerAgentDetail: '',
   organizerTicketing: 'Billetterie',
   organizerFinance: 'Finances',
   organizerNotifications: 'Notifications',
   organizerSettings: 'Profil',
-  organizerAssignments: 'Affectations des agents',
-  adminTickets: 'Billets & Manifestes',
-  adminScans: 'Scans',
+  organizerAssignments: 'Agents contrôleurs',
+  adminTickets: 'Billets & contrôle',
+  adminScans: 'Billets & contrôle',
   adminCommissions: 'Commissions',
-  adminPayouts: 'Demandes de reversement',
+  adminPayouts: 'Reversements',
   adminNotifications: 'Notifications',
 };
 
-/** Titre d'une sous-section choisie dans un sous-menu (clé `vue:section`). */
-const SECTION_TITLES: Record<string, string> = {
-  'organizerEvents:DRAFT': 'Brouillons',
-  'organizerEvents:PENDING_APPROVAL': 'En attente de validation',
-  'organizerEvents:PUBLISHED': 'Événements publiés',
-  'organizerEvents:REJECTED': 'Événements rejetés',
-  'organizerEvents:CREATE': 'Mes événements',
-  'organizerTicketing:sales': 'Ventes',
-  'organizerTicketing:manifests': 'Manifestes',
-  'organizerTicketing:exports': 'Exports',
-  'organizerFinance:balance': 'Solde disponible',
-  'organizerFinance:requests': 'Demandes de reversement',
-  'organizerFinance:history': 'Historique des reversements',
-};
+/** Pages à plusieurs vues : une seule entrée de menu, les vues sont des onglets en haut de page. */
+interface PageTab {
+  label: string;
+  view: ViewId;
+  section?: string;
+}
+const PAGE_TABS: { views: ViewId[]; tabs: PageTab[] }[] = [
+  {
+    views: ['adminTickets', 'adminScans'],
+    tabs: [
+      { label: 'Manifestes', view: 'adminTickets' },
+      { label: 'Scans', view: 'adminScans' },
+    ],
+  },
+  {
+    views: ['organizerTicketing'],
+    tabs: [
+      { label: 'Billets & tarifs', view: 'organizerTicketing' },
+      { label: 'Ventes', view: 'organizerTicketing', section: 'sales' },
+      { label: 'Manifestes & exports', view: 'organizerTicketing', section: 'exports' },
+    ],
+  },
+  {
+    views: ['organizerAgents', 'organizerAssignments'],
+    tabs: [
+      { label: 'Mes agents', view: 'organizerAgents' },
+      { label: 'Affectations', view: 'organizerAssignments' },
+    ],
+  },
+  {
+    views: ['organizerFinance'],
+    tabs: [
+      { label: "Vue d'ensemble", view: 'organizerFinance' },
+      { label: 'Reversements', view: 'organizerFinance', section: 'payouts' },
+    ],
+  },
+];
+
+const tabId = (view: ViewId, section: ViewSection | undefined) => `${view}:${section ?? ''}`;
 
 function buildViewTitle(
   view: ViewId,
-  section: ViewSection,
   selectedHotel: Hotel | null,
   selectedEvent: EventItem | null,
   selectedBooking: AdminBooking | null,
@@ -129,7 +154,7 @@ function buildViewTitle(
     case 'organizerAgentDetail':
       return `Agent — ${selectedOrganizerAgent?.agentName ?? ''}`;
     default:
-      return (section && SECTION_TITLES[`${view}:${section}`]) || TITLES[view];
+      return TITLES[view];
   }
 }
 
@@ -199,9 +224,9 @@ function App() {
   };
 
   const effectiveSection = effectiveView === view ? section : null;
+  const pageTabs = PAGE_TABS.find((family) => family.views.includes(effectiveView));
   const viewTitle = buildViewTitle(
     effectiveView,
-    effectiveSection,
     selectedHotel,
     selectedEvent,
     selectedBooking,
@@ -231,6 +256,18 @@ function App() {
         />
 
         <div className="bo-content">
+          {pageTabs && (
+            <div className="bo-page" style={{ paddingBottom: 0 }}>
+              <Tabs
+                tabs={pageTabs.tabs.map((t) => ({ id: tabId(t.view, t.section), label: t.label }))}
+                active={tabId(effectiveView, effectiveSection)}
+                onChange={(id) => {
+                  const tab = pageTabs.tabs.find((t) => tabId(t.view, t.section) === id);
+                  if (tab) navigate(tab.view, tab.section ?? null);
+                }}
+              />
+            </div>
+          )}
           {session.role === 'ADMIN' ? (
             <>
               {effectiveView === 'dashboard' && <DashboardView onNavigate={navigate} />}
@@ -240,7 +277,9 @@ function App() {
                 <HotelDetailView hotel={selectedHotel} onBack={() => navigate('hotels')} />
               )}
 
-              {effectiveView === 'events' && <EventsView filters={filters} onOpenDetail={openEventDetail} />}
+              {effectiveView === 'events' && (
+                <EventsView key={effectiveSection ?? 'ALL'} filters={filters} section={effectiveSection} onOpenDetail={openEventDetail} />
+              )}
               {effectiveView === 'eventDetail' && selectedEvent && (
                 <EventDetailView event={selectedEvent} onBack={() => navigate('events')} />
               )}
@@ -285,7 +324,6 @@ function App() {
                   filters={filters}
                   section={effectiveSection}
                   onOpenDetail={openOrganizerEventDetail}
-                  onCreateHandled={() => setSection(null)}
                 />
               )}
               {effectiveView === 'organizerEventDetail' && selectedOrganizerEvent && (

@@ -16,6 +16,7 @@ interface AttentionItem {
   /** Absent quand le backend n'expose pas la date de soumission (événements). */
   time: string | null;
   target: ViewId;
+  section?: string;
   actionLabel: string;
 }
 
@@ -46,6 +47,7 @@ async function loadAttentionItems(): Promise<AttentionItem[]> {
       body: `Événement du ${new Date(e.date).toLocaleDateString('fr-FR')} à ${e.city} en attente de validation.`,
       time: null,
       target: 'events' as const,
+      section: 'PENDING_APPROVAL',
       actionLabel: 'Valider / rejeter',
     })),
     ...payouts.map((p) => ({
@@ -102,7 +104,7 @@ export function AdminNotificationsView({ onNavigate }: AdminNotificationsViewPro
               <div style={{ color: '#164A23', fontSize: 11.5, fontWeight: 700, marginTop: 4 }}>{item.kind}</div>
               <p style={{ color: '#4F5048', fontSize: 13, lineHeight: 1.5, margin: '6px 0 0' }}>{item.body}</p>
             </div>
-            <button type="button" style={{ ...outlineButtonStyle, flexShrink: 0 }} onClick={() => onNavigate(item.target)}>
+            <button type="button" style={{ ...outlineButtonStyle, flexShrink: 0 }} onClick={() => onNavigate(item.target, item.section ?? null)}>
               {item.actionLabel}
             </button>
           </article>

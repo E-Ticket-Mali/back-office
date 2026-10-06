@@ -30,6 +30,8 @@ export function Modal(props: Readonly<ModalProps>) {
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
       aria-label={title}
       className="bo-modal-overlay"
       style={{

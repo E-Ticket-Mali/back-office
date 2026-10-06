@@ -1,4 +1,4 @@
-import type { Cell as CellType } from './types';
+import type { Cell as CellType, RowExtraAction } from './types';
 import { CategoryIcon, Icon } from '../Icon';
 
 export function CellView(props: Readonly<{ cell: CellType }>) {
@@ -99,6 +99,7 @@ export function CellView(props: Readonly<{ cell: CellType }>) {
   if (cell.kind === 'editDetailActions') {
     return (
       <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
+        {cell.extra && <ExtraActionButton action={cell.extra} />}
         <button type="button" onClick={cell.onEdit} title="Modifier" style={actionBtnStyle('#164A23')}>
           Modifier
         </button>
@@ -112,6 +113,7 @@ export function CellView(props: Readonly<{ cell: CellType }>) {
   if (cell.kind === 'detailOnlyActions') {
     return (
       <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
+        {cell.extra && <ExtraActionButton action={cell.extra} />}
         <button type="button" onClick={cell.onDetail} title="Détails" style={actionBtnStyle('#6B6459')}>
           Détails
         </button>
@@ -120,6 +122,19 @@ export function CellView(props: Readonly<{ cell: CellType }>) {
   }
 
   return null;
+}
+
+function ExtraActionButton({ action }: Readonly<{ action: RowExtraAction }>) {
+  const base = actionBtnStyle('#164A23');
+  return (
+    <button
+      type="button"
+      onClick={action.onClick}
+      style={action.primary ? { ...base, background: '#164A23', color: '#FAF3EB' } : base}
+    >
+      {action.label}
+    </button>
+  );
 }
 
 function actionBtnStyle(color: string): React.CSSProperties {
