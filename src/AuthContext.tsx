@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { adminLogin, organizerLogin } from './api/auth';
+import { login as apiLogin, verifyMfa as apiVerifyMfa, type AuthRole } from './api/auth';
 import { clearToken, getToken, registerUnauthorizedHandler, setToken } from './api/token';
 
 interface AdminSession {
@@ -17,12 +17,25 @@ interface OrganizerSession {
 export type Session = AdminSession | OrganizerSession;
 export type Role = Session['role'];
 
+/** Returned by `login()` while the user is between "password accepted" and "TOTP code entered" —
+ * the back-office shows a code-entry screen for this instead of a session until `completeMfa`
+ * (or `cancelMfa`) resolves it. */
+export interface PendingMfa {
+  challengeToken: string;
+  name: string;
+  email: string;
+}
+
 interface AuthContextValue {
   session: Session | null;
+  pendingMfa: PendingMfa | null;
   loading: boolean;
   error: string | null;
-  loginAsAdmin: (email: string, password: string) => Promise<void>;
-  loginAsOrganizer: (email: string, password: string) => Promise<void>;
+  /** Single login call for both ADMIN and ORGANIZER — the role is resolved server-side from the
+   * email, there is no role picker in the UI anymore. */
+  login: (email: string, password: string) => Promise<void>;
+  completeMfa: (code: string) => Promise<void>;
+  cancelMfa: () => void;
   logout: () => void;
 }
 
@@ -64,8 +77,13 @@ function writeStoredSession(session: Session | null) {
   }
 }
 
+function sessionFromRole(role: AuthRole, name: string, email: string): Session {
+  return role === 'ADMIN' ? { role: 'ADMIN', name, email } : { role: 'ORGANIZER', name, email };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(() => (getToken() ? readStoredSession() : null));
+  const [pendingMfa, setPendingMfa] = useState<PendingMfa | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,13 +95,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const loginAsAdmin = async (email: string, password: string) => {
+  const login = async (email: string, password: string) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await adminLogin(email, password);
+      const res = await apiLogin(email, password);
+      if (res.mfaRequired) {
+        setPendingMfa({ challengeToken: res.token, name: res.name, email: res.email });
+        return;
+      }
       setToken(res.token);
-      const next: Session = { role: 'ADMIN', name: res.name, email: res.email };
+      const next = sessionFromRole(res.role as AuthRole, res.name, res.email);
       writeStoredSession(next);
       setSession(next);
     } catch (e) {
@@ -94,32 +116,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loginAsOrganizer = async (email: string, password: string) => {
+  const completeMfa = async (code: string) => {
+    if (!pendingMfa) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await organizerLogin(email, password);
+      const res = await apiVerifyMfa(pendingMfa.challengeToken, code);
       setToken(res.token);
-      const next: Session = { role: 'ORGANIZER', name: res.name, email: res.email };
+      const next = sessionFromRole(res.role as AuthRole, res.name, res.email);
       writeStoredSession(next);
       setSession(next);
+      setPendingMfa(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Échec de connexion');
+      setError(e instanceof Error ? e.message : 'Code invalide');
       throw e;
     } finally {
       setLoading(false);
     }
+  };
+
+  const cancelMfa = () => {
+    setPendingMfa(null);
+    setError(null);
   };
 
   const logout = () => {
     clearToken();
     writeStoredSession(null);
     setSession(null);
+    setPendingMfa(null);
   };
 
   const value = useMemo(
-    () => ({ session, loading, error, loginAsAdmin, loginAsOrganizer, logout }),
-    [session, loading, error],
+    () => ({ session, pendingMfa, loading, error, login, completeMfa, cancelMfa, logout }),
+    [session, pendingMfa, loading, error],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

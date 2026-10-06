@@ -15,11 +15,22 @@ import { AgentsView } from './views/AgentsView';
 import { AgentDetailView } from './views/AgentDetailView';
 import { OrganizersView } from './views/OrganizersView';
 import { OrganizerDetailView } from './views/OrganizerDetailView';
+import { SecurityView } from './views/SecurityView';
 import { OrganizerDashboardView } from './views/OrganizerDashboardView';
 import { OrganizerEventsView } from './views/OrganizerEventsView';
 import { OrganizerEventDetailView } from './views/OrganizerEventDetailView';
 import { OrganizerAgentsView } from './views/OrganizerAgentsView';
 import { OrganizerAgentDetailView } from './views/OrganizerAgentDetailView';
+import { OrganizerSettingsView } from './views/OrganizerSettingsView';
+import { OrganizerTicketingView } from './views/OrganizerTicketingView';
+import { OrganizerFinanceView } from './views/OrganizerFinanceView';
+import { OrganizerNotificationsView } from './views/OrganizerNotificationsView';
+import { OrganizerAssignmentsView } from './views/OrganizerAssignmentsView';
+import { AdminTicketsView } from './views/AdminTicketsView';
+import { AdminScansView } from './views/AdminScansView';
+import { AdminCommissionsView } from './views/AdminCommissionsView';
+import { AdminPayoutsView } from './views/AdminPayoutsView';
+import { AdminNotificationsView } from './views/AdminNotificationsView';
 import { useAuth } from './AuthContext';
 import { useTableFilters } from './hooks/useTableFilters';
 import { ADMIN_VIEWS, defaultViewForRole, ORGANIZER_VIEWS } from './types';
@@ -33,10 +44,12 @@ import type {
   OrganizerStaffAgent,
   StaffAgent,
   ViewId,
+  ViewSection,
 } from './types';
 
 const TABLE_VIEWS = new Set<ViewId>([
   'hotels', 'events', 'bookings', 'clients', 'agents', 'organizersAdmin', 'organizerEvents', 'organizerAgents',
+  'organizerTicketing', 'adminCommissions', 'adminPayouts',
 ]);
 
 const TITLES: Record<ViewId, string> = {
@@ -53,15 +66,42 @@ const TITLES: Record<ViewId, string> = {
   agentDetail: '',
   organizersAdmin: 'Organisateurs',
   organizerAdminDetail: '',
+  security: 'Paramètres / Profil',
   organizerDashboard: 'Tableau de bord',
   organizerEvents: 'Mes événements',
   organizerEventDetail: '',
   organizerAgents: 'Agents',
   organizerAgentDetail: '',
+  organizerTicketing: 'Billetterie',
+  organizerFinance: 'Finances',
+  organizerNotifications: 'Notifications',
+  organizerSettings: 'Profil',
+  organizerAssignments: 'Affectations des agents',
+  adminTickets: 'Billets & Manifestes',
+  adminScans: 'Scans',
+  adminCommissions: 'Commissions',
+  adminPayouts: 'Demandes de reversement',
+  adminNotifications: 'Notifications',
+};
+
+/** Titre d'une sous-section choisie dans un sous-menu (clé `vue:section`). */
+const SECTION_TITLES: Record<string, string> = {
+  'organizerEvents:DRAFT': 'Brouillons',
+  'organizerEvents:PENDING_APPROVAL': 'En attente de validation',
+  'organizerEvents:PUBLISHED': 'Événements publiés',
+  'organizerEvents:REJECTED': 'Événements rejetés',
+  'organizerEvents:CREATE': 'Mes événements',
+  'organizerTicketing:sales': 'Ventes',
+  'organizerTicketing:manifests': 'Manifestes',
+  'organizerTicketing:exports': 'Exports',
+  'organizerFinance:balance': 'Solde disponible',
+  'organizerFinance:requests': 'Demandes de reversement',
+  'organizerFinance:history': 'Historique des reversements',
 };
 
 function buildViewTitle(
   view: ViewId,
+  section: ViewSection,
   selectedHotel: Hotel | null,
   selectedEvent: EventItem | null,
   selectedBooking: AdminBooking | null,
@@ -89,13 +129,14 @@ function buildViewTitle(
     case 'organizerAgentDetail':
       return `Agent — ${selectedOrganizerAgent?.agentName ?? ''}`;
     default:
-      return TITLES[view];
+      return (section && SECTION_TITLES[`${view}:${section}`]) || TITLES[view];
   }
 }
 
 function App() {
   const { session, logout } = useAuth();
   const [view, setView] = useState<ViewId>('dashboard');
+  const [section, setSection] = useState<ViewSection>(null);
   const [selectedHotel, setSelectedHotel] = useState<Hotel | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<AdminBooking | null>(null);
@@ -118,8 +159,9 @@ function App() {
   const roleViews = session.role === 'ADMIN' ? ADMIN_VIEWS : ORGANIZER_VIEWS;
   const effectiveView = roleViews.has(view) ? view : defaultViewForRole(session.role);
 
-  const navigate = (nextView: ViewId) => {
+  const navigate = (nextView: ViewId, nextSection: ViewSection = null) => {
     setView(nextView);
+    setSection(nextSection);
     filters.reset();
   };
 
@@ -156,8 +198,10 @@ function App() {
     navigate('organizerAgentDetail');
   };
 
+  const effectiveSection = effectiveView === view ? section : null;
   const viewTitle = buildViewTitle(
     effectiveView,
+    effectiveSection,
     selectedHotel,
     selectedEvent,
     selectedBooking,
@@ -171,7 +215,7 @@ function App() {
 
   return (
     <div className="bo-shell" style={{ background: '#FAF3EB', color: '#1F2E35' }}>
-      <Sidebar view={effectiveView} onNavigate={navigate} role={session.role} />
+      <Sidebar view={effectiveView} section={effectiveSection} onNavigate={navigate} role={session.role} />
 
       <div className="bo-main">
         <Topbar
@@ -182,13 +226,14 @@ function App() {
           notifications={[]}
           onMarkAllRead={() => {}}
           adminName={session.name}
+          role={session.role === 'ADMIN' ? 'Administrateur' : 'Organisateur'}
           onLogout={logout}
         />
 
         <div className="bo-content">
           {session.role === 'ADMIN' ? (
             <>
-              {effectiveView === 'dashboard' && <DashboardView />}
+              {effectiveView === 'dashboard' && <DashboardView onNavigate={navigate} />}
 
               {effectiveView === 'hotels' && <HotelsView filters={filters} onOpenDetail={openHotelDetail} />}
               {effectiveView === 'hotelDetail' && selectedHotel && (
@@ -221,13 +266,27 @@ function App() {
               {effectiveView === 'organizerAdminDetail' && selectedOrganizer && (
                 <OrganizerDetailView organizer={selectedOrganizer} onBack={() => navigate('organizersAdmin')} />
               )}
+
+              {effectiveView === 'adminTickets' && <AdminTicketsView />}
+              {effectiveView === 'adminScans' && <AdminScansView />}
+              {effectiveView === 'adminCommissions' && <AdminCommissionsView filters={filters} />}
+              {effectiveView === 'adminPayouts' && <AdminPayoutsView filters={filters} />}
+              {effectiveView === 'adminNotifications' && <AdminNotificationsView onNavigate={navigate} />}
+
+              {effectiveView === 'security' && <SecurityView />}
             </>
           ) : (
             <>
-              {effectiveView === 'organizerDashboard' && <OrganizerDashboardView />}
+              {effectiveView === 'organizerDashboard' && <OrganizerDashboardView onNavigate={navigate} />}
 
               {effectiveView === 'organizerEvents' && (
-                <OrganizerEventsView filters={filters} onOpenDetail={openOrganizerEventDetail} />
+                <OrganizerEventsView
+                  key={effectiveSection ?? 'ALL'}
+                  filters={filters}
+                  section={effectiveSection}
+                  onOpenDetail={openOrganizerEventDetail}
+                  onCreateHandled={() => setSection(null)}
+                />
               )}
               {effectiveView === 'organizerEventDetail' && selectedOrganizerEvent && (
                 <OrganizerEventDetailView event={selectedOrganizerEvent} onBack={() => navigate('organizerEvents')} />
@@ -239,6 +298,12 @@ function App() {
               {effectiveView === 'organizerAgentDetail' && selectedOrganizerAgent && (
                 <OrganizerAgentDetailView agent={selectedOrganizerAgent} onBack={() => navigate('organizerAgents')} />
               )}
+
+              {effectiveView === 'organizerSettings' && <OrganizerSettingsView />}
+              {effectiveView === 'organizerTicketing' && <OrganizerTicketingView filters={filters} section={effectiveSection} />}
+              {effectiveView === 'organizerFinance' && <OrganizerFinanceView section={effectiveSection} />}
+              {effectiveView === 'organizerAssignments' && <OrganizerAssignmentsView />}
+              {effectiveView === 'organizerNotifications' && <OrganizerNotificationsView />}
             </>
           )}
         </div>

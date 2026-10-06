@@ -16,7 +16,22 @@ export type ViewId =
   | 'organizerEvents'
   | 'organizerEventDetail'
   | 'organizerAgents'
-  | 'organizerAgentDetail';
+  | 'organizerAgentDetail'
+  | 'organizerTicketing'
+  | 'organizerFinance'
+  | 'organizerNotifications'
+  | 'organizerSettings'
+  | 'organizerAssignments'
+  | 'adminTickets'
+  | 'adminScans'
+  | 'adminCommissions'
+  | 'adminPayouts'
+  | 'adminNotifications'
+  | 'security';
+
+/** Sous-section d'une vue (ex. filtre de statut « Brouillons » sous Événements) — pilotée par
+ * les sous-menus de la sidebar. `null` = vue par défaut. */
+export type ViewSection = string | null;
 
 /** Single source of truth for which ViewIds belong to which role, and each role's landing
  * view — consumed by both the initial-state derivation and the stale-view correction in
@@ -24,10 +39,13 @@ export type ViewId =
 export const ADMIN_VIEWS = new Set<ViewId>([
   'dashboard', 'hotels', 'hotelDetail', 'events', 'eventDetail',
   'bookings', 'bookingDetail', 'clients', 'clientDetail', 'agents', 'agentDetail',
-  'organizersAdmin', 'organizerAdminDetail',
+  'organizersAdmin', 'organizerAdminDetail', 'security',
+  'adminTickets', 'adminScans', 'adminCommissions', 'adminPayouts', 'adminNotifications',
 ]);
 export const ORGANIZER_VIEWS = new Set<ViewId>([
   'organizerDashboard', 'organizerEvents', 'organizerEventDetail', 'organizerAgents', 'organizerAgentDetail',
+  'organizerTicketing', 'organizerFinance', 'organizerNotifications',
+  'organizerSettings', 'organizerAssignments',
 ]);
 
 export function defaultViewForRole(role: 'ADMIN' | 'ORGANIZER'): ViewId {
@@ -67,6 +85,8 @@ export interface EventTicket {
   capacity?: number | null;
   /** Tickets still available; null = unlimited. */
   remaining?: number | null;
+  /** Null when no image/preset has been set — render a generic icon instead. */
+  imageUrl?: string | null;
 }
 
 export interface EventItem {
@@ -85,6 +105,8 @@ export interface EventItem {
   /** Set only when status === 'REJECTED' (cleared by the backend on approval). */
   rejectionReason: string | null;
   tickets: EventTicket[];
+  /** Null when no image/preset has been set — render a generic category icon instead. */
+  imageUrl: string | null;
 }
 
 export interface AdminBooking {
@@ -183,6 +205,8 @@ export interface OrganizerEventItem {
   /** Renseigné uniquement quand `status === 'REJECTED'`. */
   rejectionReason: string | null;
   tickets: EventTicket[];
+  /** Null tant qu'aucune image/logo prédéfini n'a été défini — afficher une icône générique. */
+  imageUrl: string | null;
 }
 
 export interface OrganizerStaffAgent {
@@ -214,10 +238,24 @@ export interface PayoutRequest {
   decidedAt: string | null;
 }
 
+export interface AdminPayoutRequest extends PayoutRequest {
+  organizerId: string;
+  organizerName: string;
+}
+
 export interface OrganizerDashboardStats {
   eventsByStatus: Record<OrganizerEventStatus, number>;
   ticketsSold: number;
   balance: Balance;
+}
+
+export interface OrganizerNotification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  time: string;
+  read: boolean;
 }
 
 // --- Organisateurs — modération ADMIN (Story 6.4) -----------------------------------------
@@ -243,6 +281,7 @@ export interface AdminOrganizer {
   status: OrganizerStatus;
   createdAt: string;
   rejectionReason: string | null;
-  commissionRate: number;
+  /** `null` = taux par défaut de la plateforme (10 %). */
+  commissionRate: number | null;
   documents: AdminOrganizerDocument[];
 }

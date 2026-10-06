@@ -46,9 +46,9 @@ const STATUS_COLOR: Record<OrganizerEventStatus, [string, string]> = {
   REJECTED: ['#CE1126', 'rgba(206,17,38,0.12)'],
 };
 
-/** Édition impossible une fois soumis — cohérent avec le backend qui rejette PENDING_APPROVAL/PUBLISHED (Story 2.2/2.5). */
+/** Seule une validation en cours verrouille l'événement ; une modification publiée déclenche une nouvelle revue. */
 function isOrganizerEventEditable(status: OrganizerEventStatus): boolean {
-  return status === 'DRAFT' || status === 'REJECTED';
+  return status !== 'PENDING_APPROVAL';
 }
 
 const FIELDS: FieldDef[] = [
@@ -72,19 +72,27 @@ const EMPTY = { name: '', category: 'CONCERT' as EventCategory, city: '', locati
 
 interface OrganizerEventsViewProps {
   filters: TableFilters;
+  /** Sous-menu choisi : un statut (filtre), 'CREATE' (ouvre le formulaire) ou null (tous). */
+  section?: string | null;
   onOpenDetail: (event: OrganizerEventItem) => void;
+  /** Appelé à la fermeture du formulaire ouvert via « Créer un événement ». */
+  onCreateHandled?: () => void;
 }
 
+const STATUS_SECTIONS = new Set<string>(['DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'REJECTED']);
+
 export function OrganizerEventsView(props: Readonly<OrganizerEventsViewProps>) {
-  const { filters, onOpenDetail } = props;
+  const { filters, section = null, onOpenDetail, onCreateHandled } = props;
   const { data: events, loading, refreshing, error, reload } = useCollection(getOrganizerEvents);
-  const [editing, setEditing] = useState<OrganizerEventItem | 'new' | null>(null);
+  const [editing, setEditing] = useState<OrganizerEventItem | 'new' | null>(section === 'CREATE' ? 'new' : null);
+  const statusFilter = section && STATUS_SECTIONS.has(section) ? (section as OrganizerEventStatus) : null;
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   if (loading) return <LoadingState label="Chargement des événements…" />;
   if (error) return <ErrorState message={error} />;
 
-  const filtered = filterRows(events, ['name', 'city', 'location'], filters.search, '', '');
+  const scoped = statusFilter ? events.filter((ev) => ev.status === statusFilter) : events;
+  const filtered = filterRows(scoped, ['name', 'city', 'location'], filters.search, '', '');
   const totalRows = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
   const page = Math.min(filters.page, totalPages);
@@ -118,6 +126,7 @@ export function OrganizerEventsView(props: Readonly<OrganizerEventsViewProps>) {
   const closeModal = () => {
     setEditing(null);
     setSuccessMsg(null);
+    if (section === 'CREATE') onCreateHandled?.();
   };
 
   let initialValues = EMPTY;

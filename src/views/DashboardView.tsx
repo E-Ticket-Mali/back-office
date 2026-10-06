@@ -4,7 +4,12 @@ import { getBookings } from '../api/bookings';
 import { useCollection } from '../hooks/useCollection';
 import { LoadingState, ErrorState } from '../components/LoadingState';
 import { GREEN, GOLD } from '../theme';
-import type { BookingStatus } from '../types';
+import { getEvents } from '../api/events';
+import { getOrganizers } from '../api/organizers';
+import { getAdminPayoutRequests } from '../api/payouts';
+import { HeadlineBar } from '../components/ui';
+import { plural } from '../components/uiStyles';
+import type { BookingStatus, ViewId, ViewSection } from '../types';
 
 const STATUS_LABEL: Record<BookingStatus, string> = { CONFIRMED: 'Confirmée', PENDING: 'En attente', CANCELLED: 'Annulée' };
 const STATUS_COLORS: Record<BookingStatus, [string, string]> = {
@@ -20,8 +25,28 @@ function useDashboardStats() {
   });
 }
 
-export function DashboardView() {
+/** Ce qui demande une action de l'ADMIN — affiché en tête, avant les KPI. */
+async function loadAttention() {
+  const [events, pendingOrganizers, pendingPayouts] = await Promise.all([
+    getEvents(),
+    getOrganizers('PENDING'),
+    getAdminPayoutRequests('PENDING'),
+  ]);
+  return [
+    {
+      published: events.filter((e) => e.status === 'PUBLISHED').length,
+      pendingEvents: events.filter((e) => e.status === 'PENDING_APPROVAL').length,
+      pendingOrganizers: pendingOrganizers.length,
+      pendingPayouts: pendingPayouts.length,
+    },
+  ];
+}
+
+type DashboardViewProps = Readonly<{ onNavigate: (view: ViewId, section?: ViewSection) => void }>;
+
+export function DashboardView({ onNavigate }: DashboardViewProps) {
   const { data: statsRows, loading: statsLoading, error: statsError } = useDashboardStats();
+  const { data: attentionRows } = useCollection(loadAttention);
   const { data: bookings, loading: bookingsLoading, error: bookingsError } = useCollection(getBookings);
 
   if (statsLoading || bookingsLoading) return <LoadingState label="Chargement du tableau de bord…" />;
@@ -47,9 +72,32 @@ export function DashboardView() {
   ];
 
   const recentBookings = bookings.slice(0, 8);
+  const attention = attentionRows[0];
 
   return (
     <div className="bo-page">
+      {attention && (
+        <HeadlineBar
+          items={[
+            { label: `${plural(attention.published, 'événement')} en ligne`, onClick: () => onNavigate('events') },
+            {
+              label: `${plural(attention.pendingEvents, 'événement')} à valider`,
+              onClick: () => onNavigate('events'),
+              highlight: attention.pendingEvents > 0,
+            },
+            {
+              label: `${plural(attention.pendingOrganizers, 'organisateur')} en attente`,
+              onClick: () => onNavigate('organizersAdmin'),
+              highlight: attention.pendingOrganizers > 0,
+            },
+            {
+              label: `${plural(attention.pendingPayouts, 'demande')} de reversement`,
+              onClick: () => onNavigate('adminPayouts'),
+              highlight: attention.pendingPayouts > 0,
+            },
+          ]}
+        />
+      )}
       <div className="bo-kpi-grid" style={{ display: 'grid', gap: 16, marginBottom: 22 }}>
         {kpis.map((k) => (
           <KpiCard key={k.label} label={k.label} value={k.value} sub={k.sub} color={k.color} />

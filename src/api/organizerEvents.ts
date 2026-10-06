@@ -34,6 +34,25 @@ export const updateOrganizerTicketType = (eventId: string, ticketTypeId: string,
 export const deleteOrganizerTicketType = (eventId: string, ticketTypeId: string) =>
   http.delete(`/organizer/events/${eventId}/ticket-types/${ticketTypeId}`);
 
+export const uploadOrganizerEventImage = (eventId: string, file: File) => {
+  const form = new FormData();
+  form.append('file', file);
+  return http.postForm<OrganizerEventItem>(`/organizer/events/${eventId}/image`, form);
+};
+export const setOrganizerEventImagePreset = (eventId: string, presetKey: string) =>
+  http.put<OrganizerEventItem>(`/organizer/events/${eventId}/image/preset`, { presetKey });
+export const clearOrganizerEventImage = (eventId: string) => http.delete(`/organizer/events/${eventId}/image`);
+
+export const uploadOrganizerTicketTypeImage = (eventId: string, ticketTypeId: string, file: File) => {
+  const form = new FormData();
+  form.append('file', file);
+  return http.postForm<EventTicket>(`/organizer/events/${eventId}/ticket-types/${ticketTypeId}/image`, form);
+};
+export const setOrganizerTicketTypeImagePreset = (eventId: string, ticketTypeId: string, presetKey: string) =>
+  http.put<EventTicket>(`/organizer/events/${eventId}/ticket-types/${ticketTypeId}/image/preset`, { presetKey });
+export const clearOrganizerTicketTypeImage = (eventId: string, ticketTypeId: string) =>
+  http.delete(`/organizer/events/${eventId}/ticket-types/${ticketTypeId}/image`);
+
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api/v1';
 
 /** The manifest export returns a CSV file, not JSON — downloaded directly via fetch + blob

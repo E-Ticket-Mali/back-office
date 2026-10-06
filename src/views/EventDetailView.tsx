@@ -2,19 +2,26 @@ import { useState } from 'react';
 import {
   addTicketType,
   approveEvent,
+  clearEventImage,
+  clearTicketTypeImage,
   deleteTicketType,
   getEvent,
   getEventScanRecords,
   getEventStats,
   getEventTickets,
   rejectEvent,
+  setEventImagePreset,
+  setTicketTypeImagePreset,
   updateTicketType,
+  uploadEventImage,
+  uploadTicketTypeImage,
 } from '../api/events';
 import { useCollection } from '../hooks/useCollection';
 import { useActionError } from '../hooks/useActionError';
 import { FreePill, TicketTypePill } from '../components/Pill';
 import { LoadingState } from '../components/LoadingState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ImagePicker } from '../components/ImagePicker';
 import type { EventItem, EventTicket, OrganizerEventStatus, TicketType } from '../types';
 import { Icon } from '../components/Icon';
 import { CategoryIcon } from '../components/Icon';
@@ -299,6 +306,17 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         <div className="bo-card" style={cardStyle}>
+          <div style={cardTitleStyle}>Image de l'événement</div>
+          <ImagePicker
+            imageUrl={event.imageUrl}
+            size={140}
+            onUpload={(file) => uploadEventImage(event.id, file).then(() => reloadEvent())}
+            onSelectPreset={(key) => setEventImagePreset(event.id, key).then(() => reloadEvent())}
+            onClear={() => clearEventImage(event.id).then(() => reloadEvent())}
+          />
+        </div>
+
+        <div className="bo-card" style={cardStyle}>
           <div style={cardTitleStyle}>Types de billets</div>
 
           <div className="bo-compact-form-row" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -335,7 +353,14 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
               const draft = editingType[tt.id];
               return (
                 <div key={tt.id} style={rowStyle}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <ImagePicker
+                      imageUrl={tt.imageUrl ?? null}
+                      size={40}
+                      onUpload={(file) => uploadTicketTypeImage(event.id, tt.id, file).then(() => reloadEvent())}
+                      onSelectPreset={(key) => setTicketTypeImagePreset(event.id, tt.id, key).then(() => reloadEvent())}
+                      onClear={() => clearTicketTypeImage(event.id, tt.id).then(() => reloadEvent())}
+                    />
                     <TicketTypePill type={tt.type} />
                     {tt.price === 0 && <FreePill />}
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#1F2E35' }}>{TICKET_LABELS[tt.type]}</span>
