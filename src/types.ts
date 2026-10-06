@@ -10,6 +10,8 @@ export type ViewId =
   | 'clientDetail'
   | 'agents'
   | 'agentDetail'
+  | 'organizersAdmin'
+  | 'organizerAdminDetail'
   | 'organizerDashboard'
   | 'organizerEvents'
   | 'organizerEventDetail'
@@ -22,6 +24,7 @@ export type ViewId =
 export const ADMIN_VIEWS = new Set<ViewId>([
   'dashboard', 'hotels', 'hotelDetail', 'events', 'eventDetail',
   'bookings', 'bookingDetail', 'clients', 'clientDetail', 'agents', 'agentDetail',
+  'organizersAdmin', 'organizerAdminDetail',
 ]);
 export const ORGANIZER_VIEWS = new Set<ViewId>([
   'organizerDashboard', 'organizerEvents', 'organizerEventDetail', 'organizerAgents', 'organizerAgentDetail',
@@ -75,6 +78,12 @@ export interface EventItem {
   date: string;
   desc: string | null;
   icon: string | null;
+  /** Always PUBLISHED for events the public catalog ever returns (CatalogService filters to
+   * that before mapping); organizer-submitted events reaching /admin/events can be any
+   * OrganizerEventStatus. Optional only as defence against older/cached responses. */
+  status?: OrganizerEventStatus;
+  /** Set only when status === 'REJECTED' (cleared by the backend on approval). */
+  rejectionReason: string | null;
   tickets: EventTicket[];
 }
 
@@ -209,4 +218,31 @@ export interface OrganizerDashboardStats {
   eventsByStatus: Record<OrganizerEventStatus, number>;
   ticketsSold: number;
   balance: Balance;
+}
+
+// --- Organisateurs — modération ADMIN (Story 6.4) -----------------------------------------
+
+export type OrganizerStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+
+export type OrganizerDocumentKind = 'NIF' | 'RCCM' | 'ID_PIECE';
+
+export interface AdminOrganizerDocument {
+  id: string;
+  kind: OrganizerDocumentKind;
+  contentType: string;
+  uploadedAt: string;
+}
+
+export interface AdminOrganizer {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  nif: string;
+  rccm: string;
+  status: OrganizerStatus;
+  createdAt: string;
+  rejectionReason: string | null;
+  commissionRate: number;
+  documents: AdminOrganizerDocument[];
 }

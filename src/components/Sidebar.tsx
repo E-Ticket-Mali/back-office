@@ -5,6 +5,7 @@ import { getEvents } from '../api/events';
 import { getBookings } from '../api/bookings';
 import { getClients } from '../api/clients';
 import { getStaff } from '../api/staff';
+import { getOrganizers } from '../api/organizers';
 import { Icon, type IconName } from './Icon';
 
 interface NavItemDef {
@@ -32,6 +33,7 @@ const EMPTY_COUNTS = {
   bookings: 0,
   clients: 0,
   agents: 0,
+  organizers: 0,
 };
 
 const COLLAPSE_KEY = 'eticket-back-office.sidebar.collapsed';
@@ -175,14 +177,15 @@ export function Sidebar(props: Readonly<SidebarProps>) {
 
   useEffect(() => {
     if (role !== 'ADMIN') return;
-    Promise.all([getHotels(), getEvents(), getBookings(), getClients(), getStaff()]).then(
-      ([hotels, events, bookings, clients, agents]) => {
+    Promise.all([getHotels(), getEvents(), getBookings(), getClients(), getStaff(), getOrganizers()]).then(
+      ([hotels, events, bookings, clients, agents, organizers]) => {
         setCounts({
           hotels: hotels.length,
           events: events.length,
           bookings: bookings.length,
           clients: clients.length,
           agents: agents.length,
+          organizers: organizers.length,
         });
       }
     );
@@ -208,6 +211,7 @@ export function Sidebar(props: Readonly<SidebarProps>) {
     { id: 'bookings', label: 'Réservations', icon: 'booking', count: counts.bookings },
     { id: 'clients', label: 'Clients', icon: 'client', count: counts.clients },
     { id: 'agents', label: 'Agents contrôleurs', icon: 'agent', count: counts.agents },
+    { id: 'organizersAdmin', label: 'Organisateurs', icon: 'organizer', count: counts.organizers },
   ];
   const organizerNav: OrganizerNavItemDef[] = [
     { id: 'organizerEvents', label: 'Mes événements', icon: 'event' },

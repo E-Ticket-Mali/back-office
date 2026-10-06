@@ -10,7 +10,7 @@ import { getEvents, createEvent, updateEvent, deleteEvent, type EventInput } fro
 import { filterRows } from '../utils/filterRows';
 import { useCollection } from '../hooks/useCollection';
 import type { TableFilters } from '../hooks/useTableFilters';
-import type { EventCategory, EventItem } from '../types';
+import type { EventCategory, EventItem, OrganizerEventStatus } from '../types';
 import { GOLD, GREEN } from '../theme';
 
 const PAGE_SIZE = 8;
@@ -18,11 +18,33 @@ const PAGE_SIZE = 8;
 const COLUMNS: Column[] = [
   { label: 'Événement', width: 'minmax(144px,0.8fr)' },
   { label: 'Catégorie', width: 130 },
+  { label: 'Statut', width: 120 },
   { label: 'Ville', width: 110 },
   { label: 'Date', width: 110 },
   { label: 'Billetterie', width: 100 },
   { label: 'Actions', width: 150 },
 ];
+
+const STATUS_LABEL: Record<OrganizerEventStatus, string> = {
+  DRAFT: 'Brouillon',
+  PENDING_APPROVAL: 'En attente',
+  PUBLISHED: 'Publié',
+  REJECTED: 'Rejeté',
+};
+
+const STATUS_COLOR: Record<OrganizerEventStatus, [string, string]> = {
+  DRAFT: [GOLD, 'rgba(166,116,29,0.12)'],
+  PENDING_APPROVAL: ['#9A7800', 'rgba(252,209,22,0.2)'],
+  PUBLISHED: [GREEN, 'rgba(22,74,35,0.1)'],
+  REJECTED: ['#CE1126', 'rgba(206,17,38,0.12)'],
+};
+
+/** Un événement ADMIN classique créé directement ici a réellement `status = PUBLISHED`
+ * (défaut backend, Story 2.1) — le fallback ne joue donc que pour une réponse ancienne/en
+ * cache qui n'aurait pas encore ce champ, pas pour le cas normal. */
+function effectiveStatus(ev: EventItem): OrganizerEventStatus {
+  return ev.status ?? 'PUBLISHED';
+}
 
 const CATEGORIES: EventCategory[] = ['HIPPIQUE', 'CONCERT', 'SPORT', 'CONFERENCE', 'CINEMA', 'THEATRE'];
 const CATEGORY_LABELS: Record<EventCategory, string> = {
@@ -74,19 +96,24 @@ export function EventsView(props: Readonly<EventsViewProps>) {
   const page = Math.min(filters.page, totalPages);
   const pageSlice = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const rows: Row[] = pageSlice.map((ev) => ({
-    key: ev.id,
-    cells: [
-      eventName(ev.category, ev.name),
-      badge(CATEGORY_LABELS[ev.category], GREEN, 'rgba(22,74,35,0.1)'),
-      plain(ev.city),
-      plain(new Date(ev.date).toLocaleDateString('fr-FR')),
-      ev.tickets.length > 0 && ev.tickets.every((t) => t.price === 0)
-        ? badge('Gratuit', '#FFFFFF', '#14B53A')
-        : badge(`${ev.tickets.length} type(s)`, GOLD, 'rgba(166,116,29,0.12)'),
-      entityActions(() => setEditing(ev), () => onOpenDetail(ev), () => setDeleting(ev)),
-    ],
-  }));
+  const rows: Row[] = pageSlice.map((ev) => {
+    const status = effectiveStatus(ev);
+    const [statusColor, statusBg] = STATUS_COLOR[status];
+    return {
+      key: ev.id,
+      cells: [
+        eventName(ev.category, ev.name),
+        badge(CATEGORY_LABELS[ev.category], GREEN, 'rgba(22,74,35,0.1)'),
+        badge(STATUS_LABEL[status], statusColor, statusBg),
+        plain(ev.city),
+        plain(new Date(ev.date).toLocaleDateString('fr-FR')),
+        ev.tickets.length > 0 && ev.tickets.every((t) => t.price === 0)
+          ? badge('Gratuit', '#FFFFFF', '#14B53A')
+          : badge(`${ev.tickets.length} type(s)`, GOLD, 'rgba(166,116,29,0.12)'),
+        entityActions(() => setEditing(ev), () => onOpenDetail(ev), () => setDeleting(ev)),
+      ],
+    };
+  });
 
   const submit = async (values: FormValues) => {
     const payload = { ...values, date: fromDatetimeLocal(String(values.date)) } as unknown as EventInput;

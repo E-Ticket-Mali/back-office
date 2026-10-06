@@ -5,6 +5,7 @@ import type {
   EventItem,
   EventStats,
   EventTicket,
+  OrganizerEventStatus,
   TicketManifestEntry,
   TicketType,
 } from '../types';
@@ -26,11 +27,14 @@ export interface TicketTypeInput {
   capacity?: number;
 }
 
-export const getEvents = () => http.get<EventItem[]>('/admin/events');
+export const getEvents = (status?: OrganizerEventStatus) =>
+  http.get<EventItem[]>(`/admin/events${status ? `?status=${status}` : ''}`);
 export const getEvent = (id: string) => http.get<EventItem>(`/admin/events/${id}`);
 export const createEvent = (data: EventInput) => http.post<EventItem>('/admin/events', data);
 export const updateEvent = (id: string, patch: Partial<EventInput>) => http.patch<EventItem>(`/admin/events/${id}`, patch);
 export const deleteEvent = (id: string) => http.delete(`/admin/events/${id}`);
+export const approveEvent = (id: string) => http.post<EventItem>(`/admin/events/${id}/approve`);
+export const rejectEvent = (id: string, reason: string) => http.post<EventItem>(`/admin/events/${id}/reject`, { reason });
 
 export const addTicketType = (eventId: string, data: TicketTypeInput) =>
   http.post<EventTicket>(`/admin/events/${eventId}/ticket-types`, data);

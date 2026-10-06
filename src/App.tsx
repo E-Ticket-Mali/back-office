@@ -13,6 +13,8 @@ import { ClientsView } from './views/ClientsView';
 import { ClientDetailView } from './views/ClientDetailView';
 import { AgentsView } from './views/AgentsView';
 import { AgentDetailView } from './views/AgentDetailView';
+import { OrganizersView } from './views/OrganizersView';
+import { OrganizerDetailView } from './views/OrganizerDetailView';
 import { OrganizerDashboardView } from './views/OrganizerDashboardView';
 import { OrganizerEventsView } from './views/OrganizerEventsView';
 import { OrganizerEventDetailView } from './views/OrganizerEventDetailView';
@@ -21,9 +23,21 @@ import { OrganizerAgentDetailView } from './views/OrganizerAgentDetailView';
 import { useAuth } from './AuthContext';
 import { useTableFilters } from './hooks/useTableFilters';
 import { ADMIN_VIEWS, defaultViewForRole, ORGANIZER_VIEWS } from './types';
-import type { AdminBooking, AdminClient, EventItem, Hotel, OrganizerEventItem, OrganizerStaffAgent, StaffAgent, ViewId } from './types';
+import type {
+  AdminBooking,
+  AdminClient,
+  AdminOrganizer,
+  EventItem,
+  Hotel,
+  OrganizerEventItem,
+  OrganizerStaffAgent,
+  StaffAgent,
+  ViewId,
+} from './types';
 
-const TABLE_VIEWS = new Set<ViewId>(['hotels', 'events', 'bookings', 'clients', 'agents', 'organizerEvents', 'organizerAgents']);
+const TABLE_VIEWS = new Set<ViewId>([
+  'hotels', 'events', 'bookings', 'clients', 'agents', 'organizersAdmin', 'organizerEvents', 'organizerAgents',
+]);
 
 const TITLES: Record<ViewId, string> = {
   dashboard: 'Tableau de bord',
@@ -37,6 +51,8 @@ const TITLES: Record<ViewId, string> = {
   clientDetail: '',
   agents: 'Agents contrôleurs',
   agentDetail: '',
+  organizersAdmin: 'Organisateurs',
+  organizerAdminDetail: '',
   organizerDashboard: 'Tableau de bord',
   organizerEvents: 'Mes événements',
   organizerEventDetail: '',
@@ -51,6 +67,7 @@ function buildViewTitle(
   selectedBooking: AdminBooking | null,
   selectedClient: AdminClient | null,
   selectedAgent: StaffAgent | null,
+  selectedOrganizer: AdminOrganizer | null,
   selectedOrganizerEvent: OrganizerEventItem | null,
   selectedOrganizerAgent: OrganizerStaffAgent | null
 ): string {
@@ -65,6 +82,8 @@ function buildViewTitle(
       return `Client — ${selectedClient?.name ?? ''}`;
     case 'agentDetail':
       return `Agent — ${selectedAgent?.agentName ?? ''}`;
+    case 'organizerAdminDetail':
+      return `Organisateur — ${selectedOrganizer?.name ?? ''}`;
     case 'organizerEventDetail':
       return `Événement — ${selectedOrganizerEvent?.name ?? ''}`;
     case 'organizerAgentDetail':
@@ -82,6 +101,7 @@ function App() {
   const [selectedBooking, setSelectedBooking] = useState<AdminBooking | null>(null);
   const [selectedClient, setSelectedClient] = useState<AdminClient | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<StaffAgent | null>(null);
+  const [selectedOrganizer, setSelectedOrganizer] = useState<AdminOrganizer | null>(null);
   const [selectedOrganizerEvent, setSelectedOrganizerEvent] = useState<OrganizerEventItem | null>(null);
   const [selectedOrganizerAgent, setSelectedOrganizerAgent] = useState<OrganizerStaffAgent | null>(null);
   const filters = useTableFilters();
@@ -123,6 +143,10 @@ function App() {
     setSelectedAgent(agent);
     navigate('agentDetail');
   };
+  const openOrganizerDetail = (organizer: AdminOrganizer) => {
+    setSelectedOrganizer(organizer);
+    navigate('organizerAdminDetail');
+  };
   const openOrganizerEventDetail = (event: OrganizerEventItem) => {
     setSelectedOrganizerEvent(event);
     navigate('organizerEventDetail');
@@ -139,6 +163,7 @@ function App() {
     selectedBooking,
     selectedClient,
     selectedAgent,
+    selectedOrganizer,
     selectedOrganizerEvent,
     selectedOrganizerAgent
   );
@@ -188,6 +213,13 @@ function App() {
               {effectiveView === 'agents' && <AgentsView filters={filters} onOpenDetail={openAgentDetail} />}
               {effectiveView === 'agentDetail' && selectedAgent && (
                 <AgentDetailView agent={selectedAgent} onBack={() => navigate('agents')} />
+              )}
+
+              {effectiveView === 'organizersAdmin' && (
+                <OrganizersView filters={filters} onOpenDetail={openOrganizerDetail} />
+              )}
+              {effectiveView === 'organizerAdminDetail' && selectedOrganizer && (
+                <OrganizerDetailView organizer={selectedOrganizer} onBack={() => navigate('organizersAdmin')} />
               )}
             </>
           ) : (
