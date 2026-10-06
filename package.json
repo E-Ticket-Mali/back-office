@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "seed:demo": "node scripts/seed-demo.mjs"
   },
   "dependencies": {
     "@types/qrcode": "^1.5.6",

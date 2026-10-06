@@ -107,7 +107,7 @@ function PayoutRequestForm({ available, onCreated }: Readonly<{ available: numbe
   );
 }
 
-/** ORGANIZER › Finances : null = Vue financière · 'balance' · 'requests' · 'history'. */
+/** ORGANIZER › Finances : onglets null = Vue d'ensemble · 'payouts' = Reversements (demande + historique). */
 export function OrganizerFinanceView({ section = null }: Readonly<{ section?: string | null }>) {
   const { data: balanceRows, loading: balanceLoading, error: balanceError, reload: reloadBalance } = useCollection(() =>
     getBalance().then((b) => [b]),
@@ -129,38 +129,10 @@ export function OrganizerFinanceView({ section = null }: Readonly<{ section?: st
     reloadPayouts();
   };
 
-  if (section === 'balance') {
-    return (
-      <div className="bo-page">
-        <BalanceKpis balance={balance} />
-        <div className="bo-card" style={{ ...cardStyle, fontSize: 13, lineHeight: 1.7 }}>
-          <h2 style={titleStyle}>Calcul du solde</h2>
-          <div>Revenu net (billets confirmés − commission plateforme) : <strong>{formatFcfa(balance.netRevenue)}</strong></div>
-          <div>− Reversements engagés (en attente, approuvés ou payés) : <strong>{formatFcfa(balance.committed)}</strong></div>
-          <div>= Solde disponible : <strong style={{ color: '#164A23' }}>{formatFcfa(balance.available)}</strong></div>
-          <div style={{ ...mutedText, fontSize: 12, marginTop: 8 }}>
-            Taux de commission appliqué : {rate != null ? `${rate} %` : 'taux par défaut de la plateforme (10 %)'}. Une demande refusée libère à nouveau son montant.
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (section === 'requests') {
+  if (section === 'payouts') {
     return (
       <div className="bo-page">
         <PayoutRequestForm available={balance.available} onCreated={afterCreate} />
-        <div className="bo-card" style={cardStyle}>
-          <h2 style={titleStyle}>Demandes en cours ({open.length})</h2>
-          <PayoutList payouts={open} detailed />
-        </div>
-      </div>
-    );
-  }
-
-  if (section === 'history') {
-    return (
-      <div className="bo-page">
         <div className="bo-card" style={cardStyle}>
           <h2 style={titleStyle}>Historique des reversements ({sorted.length})</h2>
           <PayoutList payouts={sorted} detailed />
@@ -173,9 +145,15 @@ export function OrganizerFinanceView({ section = null }: Readonly<{ section?: st
   return (
     <div className="bo-page">
       <BalanceKpis balance={balance} />
-      <div className="bo-card" style={{ ...cardStyle, marginBottom: 18, fontSize: 13 }}>
-        Déjà reversé : <strong>{formatFcfa(paidTotal)}</strong> · {open.length} demande(s) en cours · commission{' '}
-        {rate != null ? `${rate} %` : 'par défaut (10 %)'}
+      <div className="bo-card" style={{ ...cardStyle, marginBottom: 18, fontSize: 13, lineHeight: 1.7 }}>
+        <h2 style={titleStyle}>Calcul du solde</h2>
+        <div>Revenu net (billets confirmés − commission plateforme) : <strong>{formatFcfa(balance.netRevenue)}</strong></div>
+        <div>− Reversements engagés (en attente, approuvés ou payés) : <strong>{formatFcfa(balance.committed)}</strong></div>
+        <div>= Solde disponible : <strong style={{ color: '#164A23' }}>{formatFcfa(balance.available)}</strong></div>
+        <div style={{ ...mutedText, fontSize: 12, marginTop: 8 }}>
+          Déjà reversé : {formatFcfa(paidTotal)} · {open.length} demande(s) en cours · commission{' '}
+          {rate != null ? `${rate} %` : 'par défaut de la plateforme (10 %)'}. Une demande refusée libère à nouveau son montant.
+        </div>
       </div>
       <div className="bo-card" style={cardStyle}>
         <h2 style={titleStyle}>Dernières demandes</h2>

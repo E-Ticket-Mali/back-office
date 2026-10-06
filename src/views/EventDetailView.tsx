@@ -101,6 +101,7 @@ const STATUS_COLOR: Record<string, [string, string]> = {
 const EVENT_STATUS_LABEL: Record<OrganizerEventStatus, string> = {
   DRAFT: 'Brouillon',
   PENDING_APPROVAL: 'En attente de validation',
+  APPROVED: 'Validé (non publié)',
   PUBLISHED: 'Publié',
   REJECTED: 'Rejeté',
 };
@@ -108,6 +109,7 @@ const EVENT_STATUS_LABEL: Record<OrganizerEventStatus, string> = {
 const EVENT_STATUS_COLOR: Record<OrganizerEventStatus, [string, string]> = {
   DRAFT: [GOLD, 'rgba(166,116,29,0.12)'],
   PENDING_APPROVAL: ['#9A7800', 'rgba(252,209,22,0.2)'],
+  APPROVED: ['#1D5C8A', 'rgba(29,92,138,0.12)'],
   PUBLISHED: [GREEN, 'rgba(22,74,35,0.1)'],
   REJECTED: ['#CE1126', 'rgba(206,17,38,0.12)'],
 };
@@ -308,6 +310,7 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
         <div className="bo-card" style={cardStyle}>
           <div style={cardTitleStyle}>Image de l'événement</div>
           <ImagePicker
+            clearLabel="Revenir au logo de la catégorie"
             imageUrl={event.imageUrl}
             size={140}
             onUpload={(file) => uploadEventImage(event.id, file).then(() => reloadEvent())}

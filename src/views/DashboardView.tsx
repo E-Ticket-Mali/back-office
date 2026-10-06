@@ -79,10 +79,10 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
       {attention && (
         <HeadlineBar
           items={[
-            { label: `${plural(attention.published, 'événement')} en ligne`, onClick: () => onNavigate('events') },
+            { label: `${plural(attention.published, 'événement')} en ligne`, onClick: () => onNavigate('events', 'PUBLISHED') },
             {
               label: `${plural(attention.pendingEvents, 'événement')} à valider`,
-              onClick: () => onNavigate('events'),
+              onClick: () => onNavigate('events', 'PENDING_APPROVAL'),
               highlight: attention.pendingEvents > 0,
             },
             {

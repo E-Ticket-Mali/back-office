@@ -9,6 +9,8 @@ import {
   setOrganizerEventImagePreset,
   setOrganizerTicketTypeImagePreset,
   submitOrganizerEvent,
+  publishOrganizerEvent,
+  unpublishOrganizerEvent,
   updateOrganizerTicketType,
   uploadOrganizerEventImage,
   uploadOrganizerTicketTypeImage,
@@ -18,6 +20,7 @@ import { useActionError } from '../hooks/useActionError';
 import { FreePill, TicketTypePill } from '../components/Pill';
 import { LoadingState } from '../components/LoadingState';
 import { ImagePicker } from '../components/ImagePicker';
+import { PublishDialog } from '../components/PublishDialog';
 import type { EventTicket, OrganizerEventItem, OrganizerEventStatus, TicketType } from '../types';
 import { Icon, CategoryIcon } from '../components/Icon';
 import { GOLD, GREEN } from '../theme';
@@ -95,6 +98,7 @@ const TICKET_LABELS: Record<TicketType, string> = { VIP: 'Billet VIP', STANDARD:
 const STATUS_LABEL: Record<OrganizerEventStatus, string> = {
   DRAFT: 'Brouillon',
   PENDING_APPROVAL: 'En attente de validation',
+  APPROVED: 'Validé (non publié)',
   PUBLISHED: 'Publié',
   REJECTED: 'Rejeté',
 };
@@ -102,6 +106,7 @@ const STATUS_LABEL: Record<OrganizerEventStatus, string> = {
 const STATUS_COLOR: Record<OrganizerEventStatus, [string, string]> = {
   DRAFT: [GOLD, 'rgba(166,116,29,0.12)'],
   PENDING_APPROVAL: ['#9A7800', 'rgba(252,209,22,0.2)'],
+  APPROVED: ['#1D5C8A', 'rgba(29,92,138,0.12)'],
   PUBLISHED: [GREEN, 'rgba(22,74,35,0.1)'],
   REJECTED: ['#CE1126', 'rgba(206,17,38,0.12)'],
 };
@@ -116,6 +121,7 @@ export function OrganizerEventDetailView(props: Readonly<OrganizerEventDetailVie
   const [newPrice, setNewPrice] = useState('');
   const [newCapacity, setNewCapacity] = useState('');
   const [editingType, setEditingType] = useState<Record<string, string>>({});
+  const [publishMode, setPublishMode] = useState<'publish' | 'unpublish' | null>(null);
   const { run, banner } = useActionError();
 
   if (eventLoading || eventRows.length === 0) {
@@ -123,6 +129,8 @@ export function OrganizerEventDetailView(props: Readonly<OrganizerEventDetailVie
   }
   const event = eventRows[0];
   const editable = isOrganizerEventEditable(event.status);
+  // Soumettre n'a de sens qu'avant validation ; ensuite, l'organisateur publie / dépublie lui-même.
+  const canSubmit = (event.status === 'DRAFT' || event.status === 'REJECTED') && event.tickets.length > 0;
   const [statusColor, statusBg] = STATUS_COLOR[event.status];
 
   const addNewTicketType = () =>
@@ -229,9 +237,19 @@ export function OrganizerEventDetailView(props: Readonly<OrganizerEventDetailVie
         {event.desc && <div style={{ fontSize: 13, color: 'rgba(250,243,235,0.85)', marginTop: 10 }}>{event.desc}</div>}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
-          {editable && event.tickets.length > 0 && (
+          {canSubmit && (
             <button type="button" onClick={submitForValidation} style={bigBtn('#A6741D')}>
               Soumettre pour validation
+            </button>
+          )}
+          {event.status === 'APPROVED' && (
+            <button type="button" onClick={() => setPublishMode('publish')} style={bigBtn('#A6741D')}>
+              Publier
+            </button>
+          )}
+          {event.status === 'PUBLISHED' && (
+            <button type="button" onClick={() => setPublishMode('unpublish')} style={bigBtn('rgba(250,243,235,0.16)')}>
+              Dépublier
             </button>
           )}
           <button type="button" onClick={downloadManifest} style={bigBtn('rgba(250,243,235,0.16)')}>
@@ -261,6 +279,7 @@ export function OrganizerEventDetailView(props: Readonly<OrganizerEventDetailVie
           <div style={cardTitleStyle}>Image de l'événement</div>
           {editable ? (
             <ImagePicker
+              clearLabel="Revenir au logo de la catégorie"
               imageUrl={event.imageUrl}
               size={140}
               onUpload={(file) => uploadOrganizerEventImage(event.id, file).then(() => reloadEvent())}
@@ -371,6 +390,19 @@ export function OrganizerEventDetailView(props: Readonly<OrganizerEventDetailVie
           </div>
         </div>
       </div>
+      {publishMode && (
+        <PublishDialog
+          mode={publishMode}
+          eventName={event.name}
+          onCancel={() => setPublishMode(null)}
+          onConfirm={async () => {
+            if (publishMode === 'publish') await publishOrganizerEvent(event.id);
+            else await unpublishOrganizerEvent(event.id);
+            setPublishMode(null);
+            reloadEvent();
+          }}
+        />
+      )}
     </div>
   );
 }

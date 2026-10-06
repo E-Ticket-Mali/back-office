@@ -21,9 +21,11 @@ const SCAN_COLOR: Record<ScanStatus, [string, string]> = {
   INVALID: ['#CE1126', 'rgba(206,17,38,0.12)'],
 };
 
-/** Suivi global des scans : seuls les événements publiés peuvent être contrôlés en porte. */
+/** Suivi global des scans : événements publiés, et validés-dépubliés (leurs billets vendus restent valides). */
 async function loadSummaries(): Promise<EventScanSummary[]> {
-  const events = (await getEvents('PUBLISHED')).sort((a, b) => b.date.localeCompare(a.date));
+  const events = (await getEvents())
+    .filter((e) => e.status === 'PUBLISHED' || e.status === 'APPROVED')
+    .sort((a, b) => b.date.localeCompare(a.date));
   const stats = await Promise.all(events.map((e) => getEventStats(e.id)));
   return events.map((event, i) => ({ event, stats: stats[i] }));
 }
@@ -82,9 +84,9 @@ export function AdminScansView() {
 
       <div className="bo-card" style={{ ...cardStyle, marginBottom: 18 }}>
         <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
-          Par événement publié
+          Par événement validé
         </div>
-        {summaries.length === 0 && <div style={mutedText}>Aucun événement publié.</div>}
+        {summaries.length === 0 && <div style={mutedText}>Aucun événement validé.</div>}
         {summaries.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: ROW_GRID, gap: 10, padding: '0 12px 6px', ...mutedText, fontSize: 11.5, fontWeight: 700 }}>
             <span>ÉVÉNEMENT</span>

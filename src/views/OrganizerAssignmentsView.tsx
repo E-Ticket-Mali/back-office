@@ -113,9 +113,10 @@ export function OrganizerAssignmentsView() {
   const data = rows[0];
   if (!data) return <ErrorState message="Affectations indisponibles." />;
 
-  // Les brouillons/rejetés ne seront jamais scannés : on ne propose que ce qui est publié ou en validation.
+  // Les brouillons/rejetés ne seront jamais scannés : on propose ce qui est en validation, validé
+  // (on peut préparer le contrôle avant de publier) ou publié.
   const assignable = events
-    .filter((e) => e.status === 'PUBLISHED' || e.status === 'PENDING_APPROVAL')
+    .filter((e) => e.status === 'PUBLISHED' || e.status === 'APPROVED' || e.status === 'PENDING_APPROVAL')
     .sort((a, b) => a.date.localeCompare(b.date));
 
   if (data.agents.length === 0) {
@@ -126,7 +127,7 @@ export function OrganizerAssignmentsView() {
     <div className="bo-page">
       {refreshing && <InlineRefreshHint />}
       {banner}
-      {assignable.length === 0 && <div style={mutedText}>Aucun événement publié ou en attente de validation.</div>}
+      {assignable.length === 0 && <div style={mutedText}>Aucun événement en validation, validé ou publié.</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {assignable.map((event) => (
           <EventAssignmentCard

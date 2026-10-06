@@ -6,7 +6,10 @@ import { EntityForm, type FieldDef, type FormValues } from '../components/Entity
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SuccessPanel } from '../components/SuccessPanel';
 import { LoadingState, ErrorState, InlineRefreshHint } from '../components/LoadingState';
-import { getEvents, createEvent, updateEvent, deleteEvent, type EventInput } from '../api/events';
+import { getEvents, createEvent, updateEvent, deleteEvent, uploadEventImage, setEventImagePreset, type EventInput } from '../api/events';
+import { CoverField } from '../components/CoverField';
+import { Tabs } from '../components/ui';
+import { applyCover, initialCover, type CoverChoice } from '../utils/cover';
 import { filterRows } from '../utils/filterRows';
 import { useCollection } from '../hooks/useCollection';
 import type { TableFilters } from '../hooks/useTableFilters';
@@ -28,6 +31,7 @@ const COLUMNS: Column[] = [
 const STATUS_LABEL: Record<OrganizerEventStatus, string> = {
   DRAFT: 'Brouillon',
   PENDING_APPROVAL: 'En attente',
+  APPROVED: 'Validé (non publié)',
   PUBLISHED: 'Publié',
   REJECTED: 'Rejeté',
 };
@@ -35,6 +39,7 @@ const STATUS_LABEL: Record<OrganizerEventStatus, string> = {
 const STATUS_COLOR: Record<OrganizerEventStatus, [string, string]> = {
   DRAFT: [GOLD, 'rgba(166,116,29,0.12)'],
   PENDING_APPROVAL: ['#9A7800', 'rgba(252,209,22,0.2)'],
+  APPROVED: ['#1D5C8A', 'rgba(29,92,138,0.12)'],
   PUBLISHED: [GREEN, 'rgba(22,74,35,0.1)'],
   REJECTED: ['#CE1126', 'rgba(206,17,38,0.12)'],
 };
@@ -77,20 +82,43 @@ const EMPTY = { name: '', category: 'CONCERT' as EventCategory, city: '', locati
 
 interface EventsViewProps {
   filters: TableFilters;
+  /** Statut présélectionné (ex. « à valider » depuis le tableau de bord / les notifications). */
+  section?: string | null;
   onOpenDetail: (event: EventItem) => void;
 }
 
+type StatusTab = 'ALL' | OrganizerEventStatus;
+const STATUS_TABS: StatusTab[] = ['ALL', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED', 'DRAFT'];
+const TAB_LABEL: Record<StatusTab, string> = {
+  ALL: 'Tous',
+  PENDING_APPROVAL: 'À valider',
+  APPROVED: 'Validés (non publiés)',
+  PUBLISHED: 'Publiés',
+  REJECTED: 'Rejetés',
+  DRAFT: 'Brouillons',
+};
+
 export function EventsView(props: Readonly<EventsViewProps>) {
-  const { filters, onOpenDetail } = props;
+  const { filters, section = null, onOpenDetail } = props;
   const { data: events, loading, refreshing, error, reload } = useCollection(getEvents);
   const [editing, setEditing] = useState<EventItem | 'new' | null>(null);
   const [deleting, setDeleting] = useState<EventItem | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [statusTab, setStatusTab] = useState<StatusTab>(
+    STATUS_TABS.includes(section as StatusTab) ? (section as StatusTab) : 'ALL',
+  );
+  const [cover, setCover] = useState<CoverChoice>(() => initialCover(EMPTY.category));
 
   if (loading) return <LoadingState label="Chargement des événements…" />;
   if (error) return <ErrorState message={error} />;
 
-  const filtered = filterRows(events, ['name', 'city', 'location'], filters.search, '', '');
+  const scoped = statusTab === 'ALL' ? events : events.filter((ev) => effectiveStatus(ev) === statusTab);
+  const tabs = STATUS_TABS.map((id) => ({
+    id,
+    label: TAB_LABEL[id],
+    count: id === 'ALL' ? events.length : events.filter((ev) => effectiveStatus(ev) === id).length,
+  }));
+  const filtered = filterRows(scoped, ['name', 'city', 'location'], filters.search, '', '');
   const totalRows = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
   const page = Math.min(filters.page, totalPages);
@@ -121,8 +149,9 @@ export function EventsView(props: Readonly<EventsViewProps>) {
       await updateEvent(editing.id, payload);
       setSuccessMsg(`Événement ${payload.name} mis à jour avec succès`);
     } else {
-      await createEvent(payload);
-      setSuccessMsg(`Événement ${payload.name} créé avec succès`);
+      const created = await createEvent(payload);
+      const warning = await applyCover(created.id, payload.category, cover, { upload: uploadEventImage, preset: setEventImagePreset });
+      setSuccessMsg(warning ? `Événement ${payload.name} créé. ${warning}` : `Événement ${payload.name} créé avec succès`);
     }
     reload();
   };
@@ -164,7 +193,16 @@ export function EventsView(props: Readonly<EventsViewProps>) {
   return (
     <>
       {refreshing && <InlineRefreshHint />}
+      <Tabs
+        tabs={tabs}
+        active={statusTab}
+        onChange={(id) => {
+          setStatusTab(id);
+          filters.setPage(1);
+        }}
+      />
       <TableView
+        createLabel="+ Nouvel événement"
         columns={COLUMNS}
         rows={rows}
         totalRows={totalRows}
@@ -172,7 +210,10 @@ export function EventsView(props: Readonly<EventsViewProps>) {
         totalPages={totalPages}
         onPrevPage={() => filters.setPage(Math.max(1, page - 1))}
         onNextPage={() => filters.setPage(Math.min(totalPages, page + 1))}
-        onCreate={() => setEditing('new')}
+        onCreate={() => {
+          setCover(initialCover(EMPTY.category));
+          setEditing('new');
+        }}
       />
 
       {editing && (
@@ -186,6 +227,11 @@ export function EventsView(props: Readonly<EventsViewProps>) {
               submitLabel={editing === 'new' ? 'Créer' : 'Enregistrer'}
               onSubmit={submit}
               onCancel={closeModal}
+              renderExtra={
+                editing === 'new'
+                  ? (values) => <CoverField category={String(values.category)} value={cover} onChange={setCover} />
+                  : undefined
+              }
             />
           )}
         </Modal>

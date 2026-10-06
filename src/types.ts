@@ -190,7 +190,7 @@ export interface DashboardStats {
 // Types dupliqués depuis les équivalents ADMIN plutôt que partagés : même raisonnement que la
 // duplication assumée côté backend (organizer/* vs admin/* services) — Story 2.2.
 
-export type OrganizerEventStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'PUBLISHED' | 'REJECTED';
+export type OrganizerEventStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'PUBLISHED' | 'REJECTED';
 
 export interface OrganizerEventItem {
   id: string;
