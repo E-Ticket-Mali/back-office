@@ -235,7 +235,7 @@ export function OrganizerDetailView(props: Readonly<OrganizerDetailViewProps>) {
             </div>
             <div style={rowStyle}>
               <span style={{ fontSize: 12.5, color: '#6B6459' }}>Taux de commission</span>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{organizer.commissionRate}%</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{organizer.commissionRate != null ? `${organizer.commissionRate}%` : 'Par défaut (10 %)'}</span>
             </div>
           </div>
         </div>

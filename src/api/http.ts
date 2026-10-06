@@ -10,11 +10,13 @@ export class UnauthorizedError extends Error {
   }
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+async function request<T>(path: string, options?: RequestInit, jsonBody = true): Promise<T> {
   const token = getToken();
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: {
-      'Content-Type': 'application/json',
+      // A FormData body must NOT get a manual Content-Type — fetch sets its own
+      // "multipart/form-data; boundary=..." only when the header is left unset.
+      ...(jsonBody ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     ...options,
@@ -40,6 +42,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const http = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
+  postForm: <T>(path: string, form: FormData) => request<T>(path, { method: 'POST', body: form }, false),
+  put: <T>(path: string, body: unknown) => request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   patch: <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: (path: string) => request<unknown>(path, { method: 'DELETE' }),
 };

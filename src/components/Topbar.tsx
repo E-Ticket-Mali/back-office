@@ -9,6 +9,7 @@ interface TopbarProps {
   notifications: AppNotification[];
   onMarkAllRead: () => void;
   adminName: string;
+  role: string;
   onLogout: () => void;
 }
 
@@ -21,7 +22,7 @@ function initialsOf(name: string): string {
 }
 
 export function Topbar(props: Readonly<TopbarProps>) {
-  const { title, hasSearch, search, onSearch, notifications, onMarkAllRead, adminName, onLogout } = props;
+  const { title, hasSearch, search, onSearch, notifications, onMarkAllRead, adminName, role, onLogout } = props;
   return (
     <div
       className="bo-topbar"
@@ -67,7 +68,7 @@ export function Topbar(props: Readonly<TopbarProps>) {
         <div style={{ width: 1, height: 24, background: '#E7DED0' }} />
         <NotificationBell notifications={notifications} onMarkAllRead={onMarkAllRead} />
         <div style={{ width: 1, height: 24, background: '#E7DED0' }} />
-        <ProfileMenu name={adminName} role="Administrateur" initials={initialsOf(adminName) || 'AD'} onLogout={onLogout} />
+        <ProfileMenu name={adminName} role={role} initials={initialsOf(adminName) || 'AD'} onLogout={onLogout} />
       </div>
     </div>
   );

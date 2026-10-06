@@ -1,23 +1,30 @@
 import { useState } from 'react';
 import {
   addOrganizerTicketType,
+  clearOrganizerEventImage,
+  clearOrganizerTicketTypeImage,
   deleteOrganizerTicketType,
   exportManifest,
   getOrganizerEvent,
+  setOrganizerEventImagePreset,
+  setOrganizerTicketTypeImagePreset,
   submitOrganizerEvent,
   updateOrganizerTicketType,
+  uploadOrganizerEventImage,
+  uploadOrganizerTicketTypeImage,
 } from '../api/organizerEvents';
 import { useCollection } from '../hooks/useCollection';
 import { useActionError } from '../hooks/useActionError';
 import { FreePill, TicketTypePill } from '../components/Pill';
 import { LoadingState } from '../components/LoadingState';
+import { ImagePicker } from '../components/ImagePicker';
 import type { EventTicket, OrganizerEventItem, OrganizerEventStatus, TicketType } from '../types';
 import { Icon, CategoryIcon } from '../components/Icon';
 import { GOLD, GREEN } from '../theme';
 
-/** Édition impossible une fois soumis — cohérent avec le backend qui rejette PENDING_APPROVAL/PUBLISHED (Story 2.2/2.5). */
+/** Seule une validation en cours verrouille l'événement ; une modification publiée déclenche une nouvelle revue. */
 function isOrganizerEventEditable(status: OrganizerEventStatus): boolean {
-  return status === 'DRAFT' || status === 'REJECTED';
+  return status !== 'PENDING_APPROVAL';
 }
 
 interface OrganizerEventDetailViewProps {
@@ -251,6 +258,23 @@ export function OrganizerEventDetailView(props: Readonly<OrganizerEventDetailVie
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         <div className="bo-card" style={cardStyle}>
+          <div style={cardTitleStyle}>Image de l'événement</div>
+          {editable ? (
+            <ImagePicker
+              imageUrl={event.imageUrl}
+              size={140}
+              onUpload={(file) => uploadOrganizerEventImage(event.id, file).then(() => reloadEvent())}
+              onSelectPreset={(key) => setOrganizerEventImagePreset(event.id, key).then(() => reloadEvent())}
+              onClear={() => clearOrganizerEventImage(event.id).then(() => reloadEvent())}
+            />
+          ) : event.imageUrl ? (
+            <img src={event.imageUrl} alt="" style={{ width: 140, height: 140, borderRadius: 12, objectFit: 'cover' }} />
+          ) : (
+            <div style={{ fontSize: 12.5, color: '#6B6459' }}>Aucune image définie.</div>
+          )}
+        </div>
+
+        <div className="bo-card" style={cardStyle}>
           <div style={cardTitleStyle}>Types de billets</div>
 
           {editable ? (
@@ -293,7 +317,20 @@ export function OrganizerEventDetailView(props: Readonly<OrganizerEventDetailVie
               const draft = editingType[tt.id];
               return (
                 <div key={tt.id} style={rowStyle}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {editable ? (
+                      <ImagePicker
+                        imageUrl={tt.imageUrl ?? null}
+                        size={40}
+                        onUpload={(file) => uploadOrganizerTicketTypeImage(event.id, tt.id, file).then(() => reloadEvent())}
+                        onSelectPreset={(key) => setOrganizerTicketTypeImagePreset(event.id, tt.id, key).then(() => reloadEvent())}
+                        onClear={() => clearOrganizerTicketTypeImage(event.id, tt.id).then(() => reloadEvent())}
+                      />
+                    ) : (
+                      tt.imageUrl && (
+                        <img src={tt.imageUrl} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover' }} />
+                      )
+                    )}
                     <TicketTypePill type={tt.type} />
                     {tt.price === 0 && <FreePill />}
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#1F2E35' }}>{TICKET_LABELS[tt.type]}</span>

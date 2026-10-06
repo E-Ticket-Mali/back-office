@@ -10,6 +10,9 @@ export const rejectOrganizer = (id: string, reason: string) =>
   http.post<AdminOrganizer>(`/admin/organizers/${id}/reject`, { reason });
 export const suspendOrganizer = (id: string) => http.post<AdminOrganizer>(`/admin/organizers/${id}/suspend`);
 export const reactivateOrganizer = (id: string) => http.post<AdminOrganizer>(`/admin/organizers/${id}/reactivate`);
+/** `rate === null` remet l'organisateur sur le taux par défaut de la plateforme. */
+export const updateCommissionRate = (id: string, rate: number | null) =>
+  http.patch<AdminOrganizer>(`/admin/organizers/${id}/commission-rate`, { rate });
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api/v1';
 
