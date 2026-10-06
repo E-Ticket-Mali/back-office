@@ -7,6 +7,14 @@ interface ConfirmDialogProps {
   /** Peut être asynchrone : si elle échoue, le message est affiché et la fenêtre reste ouverte. */
   onConfirm: (reason: string) => void | Promise<void>;
   onCancel: () => void;
+  /** Libellé du champ motif — par défaut celui d'une suppression. */
+  reasonLabel?: string;
+  /** Placeholder du champ motif. */
+  reasonPlaceholder?: string;
+  /** Libellé du bouton de confirmation — par défaut "Supprimer". */
+  confirmLabel?: string;
+  /** Couleur du bouton de confirmation — par défaut le rouge de suppression. */
+  confirmColor?: string;
 }
 
 const textareaStyle: React.CSSProperties = {
@@ -31,7 +39,16 @@ const labelStyle: React.CSSProperties = {
 };
 
 export function ConfirmDialog(props: Readonly<ConfirmDialogProps>) {
-  const { title, message, onConfirm, onCancel } = props;
+  const {
+    title,
+    message,
+    onConfirm,
+    onCancel,
+    reasonLabel = 'Motif de la suppression',
+    reasonPlaceholder = 'Expliquez pourquoi cet élément est supprimé…',
+    confirmLabel = 'Supprimer',
+    confirmColor = '#A6341D',
+  } = props;
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -56,14 +73,14 @@ export function ConfirmDialog(props: Readonly<ConfirmDialogProps>) {
 
       <div style={{ marginBottom: 20 }}>
         <label style={labelStyle} htmlFor="delete-reason">
-          Motif de la suppression <span style={{ color: '#A6341D' }}>*</span>
+          {reasonLabel} <span style={{ color: '#A6341D' }}>*</span>
         </label>
         <textarea
           id="delete-reason"
           style={textareaStyle}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="Expliquez pourquoi cet élément est supprimé…"
+          placeholder={reasonPlaceholder}
           autoFocus
         />
       </div>
@@ -101,7 +118,7 @@ export function ConfirmDialog(props: Readonly<ConfirmDialogProps>) {
           style={{
             padding: '9px 18px',
             border: 'none',
-            background: canConfirm ? '#A6341D' : '#D9B8AE',
+            background: canConfirm ? confirmColor : '#D9B8AE',
             color: '#FAF3EB',
             borderRadius: 8,
             fontFamily: "'Poppins',sans-serif",
@@ -110,7 +127,7 @@ export function ConfirmDialog(props: Readonly<ConfirmDialogProps>) {
             cursor: canConfirm ? 'pointer' : 'not-allowed',
           }}
         >
-          Supprimer
+          {confirmLabel}
         </button>
       </div>
     </Modal>

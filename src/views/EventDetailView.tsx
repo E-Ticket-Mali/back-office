@@ -1,20 +1,24 @@
 import { useState } from 'react';
 import {
   addTicketType,
+  approveEvent,
   deleteTicketType,
   getEvent,
   getEventScanRecords,
   getEventStats,
   getEventTickets,
+  rejectEvent,
   updateTicketType,
 } from '../api/events';
 import { useCollection } from '../hooks/useCollection';
 import { useActionError } from '../hooks/useActionError';
 import { FreePill, TicketTypePill } from '../components/Pill';
 import { LoadingState } from '../components/LoadingState';
-import type { EventItem, EventTicket, TicketType } from '../types';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import type { EventItem, EventTicket, OrganizerEventStatus, TicketType } from '../types';
 import { Icon } from '../components/Icon';
 import { CategoryIcon } from '../components/Icon';
+import { GOLD, GREEN } from '../theme';
 
 interface EventDetailViewProps {
   event: EventItem;
@@ -66,6 +70,18 @@ const smallBtn = (color: string): React.CSSProperties => ({
   flexShrink: 0,
 });
 
+const bigBtn = (color: string, textColor = '#FAF3EB'): React.CSSProperties => ({
+  padding: '10px 18px',
+  border: 'none',
+  background: color,
+  color: textColor,
+  borderRadius: 8,
+  fontFamily: "'Poppins',sans-serif",
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: 'pointer',
+});
+
 const TICKET_TYPES: TicketType[] = ['VIP', 'STANDARD', 'EARLY_BIRD'];
 const TICKET_LABELS: Record<TicketType, string> = { VIP: 'Billet VIP', STANDARD: 'Billet Standard', EARLY_BIRD: 'Billet Early Bird' };
 
@@ -74,6 +90,26 @@ const STATUS_COLOR: Record<string, [string, string]> = {
   USED: ['#9A7800', 'rgba(252,209,22,0.2)'],
   INVALID: ['#CE1126', 'rgba(206,17,38,0.12)'],
 };
+
+const EVENT_STATUS_LABEL: Record<OrganizerEventStatus, string> = {
+  DRAFT: 'Brouillon',
+  PENDING_APPROVAL: 'En attente de validation',
+  PUBLISHED: 'Publié',
+  REJECTED: 'Rejeté',
+};
+
+const EVENT_STATUS_COLOR: Record<OrganizerEventStatus, [string, string]> = {
+  DRAFT: [GOLD, 'rgba(166,116,29,0.12)'],
+  PENDING_APPROVAL: ['#9A7800', 'rgba(252,209,22,0.2)'],
+  PUBLISHED: [GREEN, 'rgba(22,74,35,0.1)'],
+  REJECTED: ['#CE1126', 'rgba(206,17,38,0.12)'],
+};
+
+/** Un événement ADMIN classique a réellement `status = PUBLISHED` (défaut backend, Story 2.1) ;
+ * le fallback ne joue que pour une réponse ancienne/en cache sans ce champ. */
+function effectiveStatus(ev: EventItem): OrganizerEventStatus {
+  return ev.status ?? 'PUBLISHED';
+}
 
 export function EventDetailView(props: Readonly<EventDetailViewProps>) {
   const { event: initialEvent, onBack } = props;
@@ -88,6 +124,7 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
   const [newPrice, setNewPrice] = useState('');
   const [newCapacity, setNewCapacity] = useState('');
   const [editingType, setEditingType] = useState<Record<string, string>>({});
+  const [rejecting, setRejecting] = useState(false);
   const { run, banner } = useActionError();
 
   if (eventLoading || statsLoading || ticketsLoading || scanLoading || eventRows.length === 0) {
@@ -95,6 +132,9 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
   }
   const event = eventRows[0];
   const stats = statsRows[0];
+  const status = effectiveStatus(event);
+  const [statusColor, statusBg] = EVENT_STATUS_COLOR[status];
+  const pendingApproval = status === 'PENDING_APPROVAL';
 
   const addNewTicketType = () =>
     run(async () => {
@@ -130,6 +170,19 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
       reloadEvent();
     });
 
+  const approve = () =>
+    run(async () => {
+      await approveEvent(event.id);
+      reloadEvent();
+    });
+
+  const confirmReject = (reason: string) =>
+    run(async () => {
+      await rejectEvent(event.id, reason);
+      setRejecting(false);
+      reloadEvent();
+    });
+
   return (
     <div className="bo-page">
       <button
@@ -162,8 +215,23 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
           marginBottom: 20,
         }}
       >
-        <div style={{ fontSize: 12, color: 'rgba(250,243,235,0.7)', fontWeight: 600, marginBottom: 4 }}>
-          {event.city} · {event.location}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+          <span style={{ fontSize: 12, color: 'rgba(250,243,235,0.7)', fontWeight: 600 }}>
+            {event.city} · {event.location}
+          </span>
+          <span
+            style={{
+              fontFamily: "'Poppins',sans-serif",
+              fontSize: 10.5,
+              fontWeight: 700,
+              padding: '3px 10px',
+              borderRadius: 999,
+              color: statusColor,
+              background: statusBg,
+            }}
+          >
+            {EVENT_STATUS_LABEL[status]}
+          </span>
         </div>
         <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: 26, fontWeight: 800, color: '#FAF3EB' }}>
           <CategoryIcon category={event.category} size={26} /> {event.name}
@@ -172,7 +240,46 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
           {new Date(event.date).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}
         </div>
         {event.desc && <div style={{ fontSize: 13, color: 'rgba(250,243,235,0.85)', marginTop: 10 }}>{event.desc}</div>}
+
+        {pendingApproval && (
+          <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
+            <button type="button" onClick={approve} style={bigBtn('#164A23')}>
+              Approuver
+            </button>
+            <button type="button" onClick={() => setRejecting(true)} style={bigBtn('#A6341D')}>
+              Rejeter
+            </button>
+          </div>
+        )}
       </div>
+
+      {status === 'REJECTED' && event.rejectionReason && (
+        <div
+          style={{
+            marginBottom: 20,
+            padding: '14px 18px',
+            borderRadius: 10,
+            border: '1px solid #F5DCD4',
+            background: '#FBEDE8',
+            color: '#8A2E17',
+            fontSize: 13.5,
+          }}
+        >
+          <strong>Motif du rejet :</strong> {event.rejectionReason}
+        </div>
+      )}
+
+      {rejecting && (
+        <ConfirmDialog
+          title="Rejeter l'événement"
+          message={`Rejeter l'événement ${event.name} ?`}
+          reasonLabel="Motif du rejet"
+          reasonPlaceholder="Expliquez pourquoi cet événement est rejeté…"
+          confirmLabel="Rejeter"
+          onConfirm={confirmReject}
+          onCancel={() => setRejecting(false)}
+        />
+      )}
 
       {stats && (
         <div className="bo-kpi-grid" style={{ display: 'grid', gap: 14, marginBottom: 20 }}>

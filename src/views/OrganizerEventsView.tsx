@@ -1,29 +1,36 @@
 import { useState } from 'react';
 import { TableView } from '../components/table/TableView';
-import { badge, entityActions, eventName, plain, type Column, type Row } from '../components/table/types';
+import { badge, detailOnlyActions, editDetailActions, eventName, plain, type Column, type Row } from '../components/table/types';
 import { Modal } from '../components/Modal';
 import { EntityForm, type FieldDef, type FormValues } from '../components/EntityForm';
-import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SuccessPanel } from '../components/SuccessPanel';
 import { LoadingState, ErrorState, InlineRefreshHint } from '../components/LoadingState';
-import { getEvents, createEvent, updateEvent, deleteEvent, type EventInput } from '../api/events';
+import { getOrganizerEvents, createOrganizerEvent, updateOrganizerEvent, type OrganizerEventInput } from '../api/organizerEvents';
 import { filterRows } from '../utils/filterRows';
 import { useCollection } from '../hooks/useCollection';
 import type { TableFilters } from '../hooks/useTableFilters';
-import type { EventCategory, EventItem, OrganizerEventStatus } from '../types';
+import type { EventCategory, OrganizerEventItem, OrganizerEventStatus } from '../types';
 import { GOLD, GREEN } from '../theme';
 
 const PAGE_SIZE = 8;
 
 const COLUMNS: Column[] = [
   { label: 'Événement', width: 'minmax(144px,0.8fr)' },
-  { label: 'Catégorie', width: 130 },
-  { label: 'Statut', width: 120 },
+  { label: 'Statut', width: 150 },
   { label: 'Ville', width: 110 },
   { label: 'Date', width: 110 },
-  { label: 'Billetterie', width: 100 },
-  { label: 'Actions', width: 150 },
+  { label: 'Actions', width: 120 },
 ];
+
+const CATEGORIES: EventCategory[] = ['HIPPIQUE', 'CONCERT', 'SPORT', 'CONFERENCE', 'CINEMA', 'THEATRE'];
+const CATEGORY_LABELS: Record<EventCategory, string> = {
+  HIPPIQUE: 'Courses hippiques',
+  CONCERT: 'Concert',
+  SPORT: 'Sport',
+  CONFERENCE: 'Conférence',
+  CINEMA: 'Cinéma',
+  THEATRE: 'Théâtre',
+};
 
 const STATUS_LABEL: Record<OrganizerEventStatus, string> = {
   DRAFT: 'Brouillon',
@@ -39,22 +46,10 @@ const STATUS_COLOR: Record<OrganizerEventStatus, [string, string]> = {
   REJECTED: ['#CE1126', 'rgba(206,17,38,0.12)'],
 };
 
-/** Un événement ADMIN classique créé directement ici a réellement `status = PUBLISHED`
- * (défaut backend, Story 2.1) — le fallback ne joue donc que pour une réponse ancienne/en
- * cache qui n'aurait pas encore ce champ, pas pour le cas normal. */
-function effectiveStatus(ev: EventItem): OrganizerEventStatus {
-  return ev.status ?? 'PUBLISHED';
+/** Édition impossible une fois soumis — cohérent avec le backend qui rejette PENDING_APPROVAL/PUBLISHED (Story 2.2/2.5). */
+function isOrganizerEventEditable(status: OrganizerEventStatus): boolean {
+  return status === 'DRAFT' || status === 'REJECTED';
 }
-
-const CATEGORIES: EventCategory[] = ['HIPPIQUE', 'CONCERT', 'SPORT', 'CONFERENCE', 'CINEMA', 'THEATRE'];
-const CATEGORY_LABELS: Record<EventCategory, string> = {
-  HIPPIQUE: 'Courses hippiques',
-  CONCERT: 'Concert',
-  SPORT: 'Sport',
-  CONFERENCE: 'Conférence',
-  CINEMA: 'Cinéma',
-  THEATRE: 'Théâtre',
-};
 
 const FIELDS: FieldDef[] = [
   { key: 'name', label: "Nom de l'événement", type: 'text' },
@@ -75,16 +70,15 @@ function fromDatetimeLocal(local: string): string {
 
 const EMPTY = { name: '', category: 'CONCERT' as EventCategory, city: '', location: '', date: '', desc: '' };
 
-interface EventsViewProps {
+interface OrganizerEventsViewProps {
   filters: TableFilters;
-  onOpenDetail: (event: EventItem) => void;
+  onOpenDetail: (event: OrganizerEventItem) => void;
 }
 
-export function EventsView(props: Readonly<EventsViewProps>) {
+export function OrganizerEventsView(props: Readonly<OrganizerEventsViewProps>) {
   const { filters, onOpenDetail } = props;
-  const { data: events, loading, refreshing, error, reload } = useCollection(getEvents);
-  const [editing, setEditing] = useState<EventItem | 'new' | null>(null);
-  const [deleting, setDeleting] = useState<EventItem | null>(null);
+  const { data: events, loading, refreshing, error, reload } = useCollection(getOrganizerEvents);
+  const [editing, setEditing] = useState<OrganizerEventItem | 'new' | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   if (loading) return <LoadingState label="Chargement des événements…" />;
@@ -96,33 +90,27 @@ export function EventsView(props: Readonly<EventsViewProps>) {
   const page = Math.min(filters.page, totalPages);
   const pageSlice = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const rows: Row[] = pageSlice.map((ev) => {
-    const status = effectiveStatus(ev);
-    const [statusColor, statusBg] = STATUS_COLOR[status];
-    return {
-      key: ev.id,
-      cells: [
-        eventName(ev.category, ev.name),
-        badge(CATEGORY_LABELS[ev.category], GREEN, 'rgba(22,74,35,0.1)'),
-        badge(STATUS_LABEL[status], statusColor, statusBg),
-        plain(ev.city),
-        plain(new Date(ev.date).toLocaleDateString('fr-FR')),
-        ev.tickets.length > 0 && ev.tickets.every((t) => t.price === 0)
-          ? badge('Gratuit', '#FFFFFF', '#14B53A')
-          : badge(`${ev.tickets.length} type(s)`, GOLD, 'rgba(166,116,29,0.12)'),
-        entityActions(() => setEditing(ev), () => onOpenDetail(ev), () => setDeleting(ev)),
-      ],
-    };
-  });
+  const rows: Row[] = pageSlice.map((ev) => ({
+    key: ev.id,
+    cells: [
+      eventName(ev.category, ev.name),
+      badge(STATUS_LABEL[ev.status], STATUS_COLOR[ev.status][0], STATUS_COLOR[ev.status][1]),
+      plain(ev.city),
+      plain(new Date(ev.date).toLocaleDateString('fr-FR')),
+      isOrganizerEventEditable(ev.status)
+        ? editDetailActions(() => setEditing(ev), () => onOpenDetail(ev))
+        : detailOnlyActions(() => onOpenDetail(ev)),
+    ],
+  }));
 
   const submit = async (values: FormValues) => {
-    const payload = { ...values, date: fromDatetimeLocal(String(values.date)) } as unknown as EventInput;
+    const payload = { ...values, date: fromDatetimeLocal(String(values.date)) } as unknown as OrganizerEventInput;
     if (editing && editing !== 'new') {
-      await updateEvent(editing.id, payload);
+      await updateOrganizerEvent(editing.id, payload);
       setSuccessMsg(`Événement ${payload.name} mis à jour avec succès`);
     } else {
-      await createEvent(payload);
-      setSuccessMsg(`Événement ${payload.name} créé avec succès`);
+      await createOrganizerEvent(payload);
+      setSuccessMsg(`Événement ${payload.name} créé avec succès (brouillon)`);
     }
     reload();
   };
@@ -130,15 +118,6 @@ export function EventsView(props: Readonly<EventsViewProps>) {
   const closeModal = () => {
     setEditing(null);
     setSuccessMsg(null);
-  };
-
-  const confirmDelete = async (reason: string) => {
-    if (deleting) {
-      console.info(`Événement ${deleting.name} supprimé — motif : ${reason}`);
-      await deleteEvent(deleting.id);
-      setDeleting(null);
-      reload();
-    }
   };
 
   let initialValues = EMPTY;
@@ -189,15 +168,6 @@ export function EventsView(props: Readonly<EventsViewProps>) {
             />
           )}
         </Modal>
-      )}
-
-      {deleting && (
-        <ConfirmDialog
-          title="Supprimer l'événement"
-          message={`Supprimer ${deleting.name} et tous ses billets ?`}
-          onConfirm={confirmDelete}
-          onCancel={() => setDeleting(null)}
-        />
       )}
     </>
   );

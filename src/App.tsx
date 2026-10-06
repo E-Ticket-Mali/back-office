@@ -13,11 +13,31 @@ import { ClientsView } from './views/ClientsView';
 import { ClientDetailView } from './views/ClientDetailView';
 import { AgentsView } from './views/AgentsView';
 import { AgentDetailView } from './views/AgentDetailView';
+import { OrganizersView } from './views/OrganizersView';
+import { OrganizerDetailView } from './views/OrganizerDetailView';
+import { OrganizerDashboardView } from './views/OrganizerDashboardView';
+import { OrganizerEventsView } from './views/OrganizerEventsView';
+import { OrganizerEventDetailView } from './views/OrganizerEventDetailView';
+import { OrganizerAgentsView } from './views/OrganizerAgentsView';
+import { OrganizerAgentDetailView } from './views/OrganizerAgentDetailView';
 import { useAuth } from './AuthContext';
 import { useTableFilters } from './hooks/useTableFilters';
-import type { AdminBooking, AdminClient, EventItem, Hotel, StaffAgent, ViewId } from './types';
+import { ADMIN_VIEWS, defaultViewForRole, ORGANIZER_VIEWS } from './types';
+import type {
+  AdminBooking,
+  AdminClient,
+  AdminOrganizer,
+  EventItem,
+  Hotel,
+  OrganizerEventItem,
+  OrganizerStaffAgent,
+  StaffAgent,
+  ViewId,
+} from './types';
 
-const TABLE_VIEWS = new Set<ViewId>(['hotels', 'events', 'bookings', 'clients', 'agents']);
+const TABLE_VIEWS = new Set<ViewId>([
+  'hotels', 'events', 'bookings', 'clients', 'agents', 'organizersAdmin', 'organizerEvents', 'organizerAgents',
+]);
 
 const TITLES: Record<ViewId, string> = {
   dashboard: 'Tableau de bord',
@@ -31,6 +51,13 @@ const TITLES: Record<ViewId, string> = {
   clientDetail: '',
   agents: 'Agents contrôleurs',
   agentDetail: '',
+  organizersAdmin: 'Organisateurs',
+  organizerAdminDetail: '',
+  organizerDashboard: 'Tableau de bord',
+  organizerEvents: 'Mes événements',
+  organizerEventDetail: '',
+  organizerAgents: 'Agents',
+  organizerAgentDetail: '',
 };
 
 function buildViewTitle(
@@ -39,7 +66,10 @@ function buildViewTitle(
   selectedEvent: EventItem | null,
   selectedBooking: AdminBooking | null,
   selectedClient: AdminClient | null,
-  selectedAgent: StaffAgent | null
+  selectedAgent: StaffAgent | null,
+  selectedOrganizer: AdminOrganizer | null,
+  selectedOrganizerEvent: OrganizerEventItem | null,
+  selectedOrganizerAgent: OrganizerStaffAgent | null
 ): string {
   switch (view) {
     case 'hotelDetail':
@@ -52,6 +82,12 @@ function buildViewTitle(
       return `Client — ${selectedClient?.name ?? ''}`;
     case 'agentDetail':
       return `Agent — ${selectedAgent?.agentName ?? ''}`;
+    case 'organizerAdminDetail':
+      return `Organisateur — ${selectedOrganizer?.name ?? ''}`;
+    case 'organizerEventDetail':
+      return `Événement — ${selectedOrganizerEvent?.name ?? ''}`;
+    case 'organizerAgentDetail':
+      return `Agent — ${selectedOrganizerAgent?.agentName ?? ''}`;
     default:
       return TITLES[view];
   }
@@ -65,11 +101,22 @@ function App() {
   const [selectedBooking, setSelectedBooking] = useState<AdminBooking | null>(null);
   const [selectedClient, setSelectedClient] = useState<AdminClient | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<StaffAgent | null>(null);
+  const [selectedOrganizer, setSelectedOrganizer] = useState<AdminOrganizer | null>(null);
+  const [selectedOrganizerEvent, setSelectedOrganizerEvent] = useState<OrganizerEventItem | null>(null);
+  const [selectedOrganizerAgent, setSelectedOrganizerAgent] = useState<OrganizerStaffAgent | null>(null);
   const filters = useTableFilters();
 
   if (!session) {
     return <LoginView />;
   }
+
+  // Derived at render time (not via a useEffect + setState) so a role switch (logout, then
+  // login as the other role) never paints a frame where `view` still points at a ViewId that
+  // belongs to the previous role's branch — the content area would otherwise render nothing
+  // for that one frame. `view` itself is left untouched; only what gets rendered/compared
+  // against is corrected, and the next explicit `navigate()` call still writes to real state.
+  const roleViews = session.role === 'ADMIN' ? ADMIN_VIEWS : ORGANIZER_VIEWS;
+  const effectiveView = roleViews.has(view) ? view : defaultViewForRole(session.role);
 
   const navigate = (nextView: ViewId) => {
     setView(nextView);
@@ -96,13 +143,35 @@ function App() {
     setSelectedAgent(agent);
     navigate('agentDetail');
   };
+  const openOrganizerDetail = (organizer: AdminOrganizer) => {
+    setSelectedOrganizer(organizer);
+    navigate('organizerAdminDetail');
+  };
+  const openOrganizerEventDetail = (event: OrganizerEventItem) => {
+    setSelectedOrganizerEvent(event);
+    navigate('organizerEventDetail');
+  };
+  const openOrganizerAgentDetail = (agent: OrganizerStaffAgent) => {
+    setSelectedOrganizerAgent(agent);
+    navigate('organizerAgentDetail');
+  };
 
-  const viewTitle = buildViewTitle(view, selectedHotel, selectedEvent, selectedBooking, selectedClient, selectedAgent);
-  const hasSearch = TABLE_VIEWS.has(view);
+  const viewTitle = buildViewTitle(
+    effectiveView,
+    selectedHotel,
+    selectedEvent,
+    selectedBooking,
+    selectedClient,
+    selectedAgent,
+    selectedOrganizer,
+    selectedOrganizerEvent,
+    selectedOrganizerAgent
+  );
+  const hasSearch = TABLE_VIEWS.has(effectiveView);
 
   return (
     <div className="bo-shell" style={{ background: '#FAF3EB', color: '#1F2E35' }}>
-      <Sidebar view={view} onNavigate={navigate} />
+      <Sidebar view={effectiveView} onNavigate={navigate} role={session.role} />
 
       <div className="bo-main">
         <Topbar
@@ -117,31 +186,60 @@ function App() {
         />
 
         <div className="bo-content">
-          {view === 'dashboard' && <DashboardView />}
+          {session.role === 'ADMIN' ? (
+            <>
+              {effectiveView === 'dashboard' && <DashboardView />}
 
-          {view === 'hotels' && <HotelsView filters={filters} onOpenDetail={openHotelDetail} />}
-          {view === 'hotelDetail' && selectedHotel && (
-            <HotelDetailView hotel={selectedHotel} onBack={() => navigate('hotels')} />
-          )}
+              {effectiveView === 'hotels' && <HotelsView filters={filters} onOpenDetail={openHotelDetail} />}
+              {effectiveView === 'hotelDetail' && selectedHotel && (
+                <HotelDetailView hotel={selectedHotel} onBack={() => navigate('hotels')} />
+              )}
 
-          {view === 'events' && <EventsView filters={filters} onOpenDetail={openEventDetail} />}
-          {view === 'eventDetail' && selectedEvent && (
-            <EventDetailView event={selectedEvent} onBack={() => navigate('events')} />
-          )}
+              {effectiveView === 'events' && <EventsView filters={filters} onOpenDetail={openEventDetail} />}
+              {effectiveView === 'eventDetail' && selectedEvent && (
+                <EventDetailView event={selectedEvent} onBack={() => navigate('events')} />
+              )}
 
-          {view === 'bookings' && <BookingsView filters={filters} onOpenDetail={openBookingDetail} />}
-          {view === 'bookingDetail' && selectedBooking && (
-            <BookingDetailView booking={selectedBooking} onBack={() => navigate('bookings')} />
-          )}
+              {effectiveView === 'bookings' && <BookingsView filters={filters} onOpenDetail={openBookingDetail} />}
+              {effectiveView === 'bookingDetail' && selectedBooking && (
+                <BookingDetailView booking={selectedBooking} onBack={() => navigate('bookings')} />
+              )}
 
-          {view === 'clients' && <ClientsView filters={filters} onOpenDetail={openClientDetail} />}
-          {view === 'clientDetail' && selectedClient && (
-            <ClientDetailView client={selectedClient} onBack={() => navigate('clients')} />
-          )}
+              {effectiveView === 'clients' && <ClientsView filters={filters} onOpenDetail={openClientDetail} />}
+              {effectiveView === 'clientDetail' && selectedClient && (
+                <ClientDetailView client={selectedClient} onBack={() => navigate('clients')} />
+              )}
 
-          {view === 'agents' && <AgentsView filters={filters} onOpenDetail={openAgentDetail} />}
-          {view === 'agentDetail' && selectedAgent && (
-            <AgentDetailView agent={selectedAgent} onBack={() => navigate('agents')} />
+              {effectiveView === 'agents' && <AgentsView filters={filters} onOpenDetail={openAgentDetail} />}
+              {effectiveView === 'agentDetail' && selectedAgent && (
+                <AgentDetailView agent={selectedAgent} onBack={() => navigate('agents')} />
+              )}
+
+              {effectiveView === 'organizersAdmin' && (
+                <OrganizersView filters={filters} onOpenDetail={openOrganizerDetail} />
+              )}
+              {effectiveView === 'organizerAdminDetail' && selectedOrganizer && (
+                <OrganizerDetailView organizer={selectedOrganizer} onBack={() => navigate('organizersAdmin')} />
+              )}
+            </>
+          ) : (
+            <>
+              {effectiveView === 'organizerDashboard' && <OrganizerDashboardView />}
+
+              {effectiveView === 'organizerEvents' && (
+                <OrganizerEventsView filters={filters} onOpenDetail={openOrganizerEventDetail} />
+              )}
+              {effectiveView === 'organizerEventDetail' && selectedOrganizerEvent && (
+                <OrganizerEventDetailView event={selectedOrganizerEvent} onBack={() => navigate('organizerEvents')} />
+              )}
+
+              {effectiveView === 'organizerAgents' && (
+                <OrganizerAgentsView filters={filters} onOpenDetail={openOrganizerAgentDetail} />
+              )}
+              {effectiveView === 'organizerAgentDetail' && selectedOrganizerAgent && (
+                <OrganizerAgentDetailView agent={selectedOrganizerAgent} onBack={() => navigate('organizerAgents')} />
+              )}
+            </>
           )}
         </div>
       </div>

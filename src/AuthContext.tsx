@@ -1,17 +1,28 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { adminLogin } from './api/auth';
+import { adminLogin, organizerLogin } from './api/auth';
 import { clearToken, getToken, registerUnauthorizedHandler, setToken } from './api/token';
 
 interface AdminSession {
+  role: 'ADMIN';
   name: string;
   email: string;
 }
 
+interface OrganizerSession {
+  role: 'ORGANIZER';
+  name: string;
+  email: string;
+}
+
+export type Session = AdminSession | OrganizerSession;
+export type Role = Session['role'];
+
 interface AuthContextValue {
-  session: AdminSession | null;
+  session: Session | null;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  loginAsAdmin: (email: string, password: string) => Promise<void>;
+  loginAsOrganizer: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -19,16 +30,32 @@ const SESSION_KEY = 'eticket-back-office.session';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function readStoredSession(): AdminSession | null {
+function isValidSession(value: unknown): value is Session {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+  return (v.role === 'ADMIN' || v.role === 'ORGANIZER') && typeof v.name === 'string' && typeof v.email === 'string';
+}
+
+function readStoredSession(): Session | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
-    return raw ? (JSON.parse(raw) as AdminSession) : null;
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!isValidSession(parsed)) {
+      // Malformed or pre-role-discriminant session (or a tampered one): never leave a token
+      // sitting in storage with no matching session — that's an authenticated-but-logged-out
+      // state. Clear both so the user cleanly falls back to the login screen.
+      clearToken();
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return parsed;
   } catch {
     return null;
   }
 }
 
-function writeStoredSession(session: AdminSession | null) {
+function writeStoredSession(session: Session | null) {
   try {
     if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     else localStorage.removeItem(SESSION_KEY);
@@ -38,7 +65,7 @@ function writeStoredSession(session: AdminSession | null) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<AdminSession | null>(() => (getToken() ? readStoredSession() : null));
+  const [session, setSession] = useState<Session | null>(() => (getToken() ? readStoredSession() : null));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,13 +77,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const loginAsAdmin = async (email: string, password: string) => {
     setLoading(true);
     setError(null);
     try {
       const res = await adminLogin(email, password);
       setToken(res.token);
-      const next = { name: res.name, email: res.email };
+      const next: Session = { role: 'ADMIN', name: res.name, email: res.email };
+      writeStoredSession(next);
+      setSession(next);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Échec de connexion');
+      throw e;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginAsOrganizer = async (email: string, password: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await organizerLogin(email, password);
+      setToken(res.token);
+      const next: Session = { role: 'ORGANIZER', name: res.name, email: res.email };
       writeStoredSession(next);
       setSession(next);
     } catch (e) {
@@ -73,7 +117,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   };
 
-  const value = useMemo(() => ({ session, loading, error, login, logout }), [session, loading, error]);
+  const value = useMemo(
+    () => ({ session, loading, error, loginAsAdmin, loginAsOrganizer, logout }),
+    [session, loading, error],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
