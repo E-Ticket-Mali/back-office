@@ -29,7 +29,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error((body && body.message) || `Erreur ${res.status} sur ${path}`);
   }
   if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  // Some endpoints return a non-204 success status (e.g. 201 Created) with an empty body
+  // (a void controller method) — res.json() on empty text throws, so check for that first
+  // instead of assuming every non-204 success response carries a JSON payload.
+  const text = await res.text();
+  if (text.length === 0) return undefined as T;
+  return JSON.parse(text) as T;
 }
 
 export const http = {
