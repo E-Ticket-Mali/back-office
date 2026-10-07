@@ -24,7 +24,7 @@ const SCAN_COLOR: Record<ScanStatus, [string, string]> = {
 /** Suivi global des scans : événements publiés, et validés-dépubliés (leurs billets vendus restent valides). */
 async function loadSummaries(): Promise<EventScanSummary[]> {
   const events = (await getEvents())
-    .filter((e) => e.status === 'PUBLISHED' || e.status === 'APPROVED')
+    .filter((e) => e.status === 'PUBLISHED' || e.status === 'UNPUBLISHED' || e.status === 'APPROVED')
     .sort((a, b) => b.date.localeCompare(a.date));
   const stats = await Promise.all(events.map((e) => getEventStats(e.id)));
   return events.map((event, i) => ({ event, stats: stats[i] }));

@@ -37,7 +37,7 @@ export function AdminTicketsView() {
       })
       .catch((e: unknown) => {
         if (cancelled || e instanceof UnauthorizedError) return;
-        setManifestError(e instanceof Error ? e.message : 'Erreur de chargement du manifeste');
+        setManifestError(e instanceof Error ? e.message : 'Erreur de chargement de la liste des participants');
       });
     return () => {
       cancelled = true;
@@ -74,7 +74,7 @@ export function AdminTicketsView() {
       </div>
 
       {manifestError && <ErrorState message={manifestError} />}
-      {!manifestError && !current && <LoadingState label="Chargement du manifeste…" />}
+      {!manifestError && !current && <LoadingState label="Chargement de la liste des participants…" />}
 
       {current && (
         <>
@@ -86,7 +86,7 @@ export function AdminTicketsView() {
 
           <div className="bo-card" style={cardStyle}>
             <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: 14, fontWeight: 700, marginBottom: 12 }}>
-              Manifeste ({visibleTickets.length})
+              Liste des participants ({visibleTickets.length})
             </div>
             {visibleTickets.length === 0 && <div style={mutedText}>Aucun billet.</div>}
             <div style={{ display: 'grid', gap: 6 }}>

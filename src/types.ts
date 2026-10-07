@@ -14,7 +14,6 @@ export type ViewId =
   | 'organizerAdminDetail'
   | 'organizerDashboard'
   | 'organizerEvents'
-  | 'organizerEventDetail'
   | 'organizerAgents'
   | 'organizerAgentDetail'
   | 'organizerTicketing'
@@ -43,7 +42,7 @@ export const ADMIN_VIEWS = new Set<ViewId>([
   'adminTickets', 'adminScans', 'adminCommissions', 'adminPayouts', 'adminNotifications',
 ]);
 export const ORGANIZER_VIEWS = new Set<ViewId>([
-  'organizerDashboard', 'organizerEvents', 'organizerEventDetail', 'organizerAgents', 'organizerAgentDetail',
+  'organizerDashboard', 'organizerEvents', 'organizerAgents', 'organizerAgentDetail',
   'organizerTicketing', 'organizerFinance', 'organizerNotifications',
   'organizerSettings', 'organizerAssignments',
 ]);
@@ -87,6 +86,15 @@ export interface EventTicket {
   remaining?: number | null;
   /** Null when no image/preset has been set — render a generic icon instead. */
   imageUrl?: string | null;
+  /** Nom commercial de la catégorie de billet (« Standard », « Carré Or »…). */
+  name: string;
+  description?: string | null;
+  /** Une catégorie désactivée n'est plus vendable ; ses billets déjà vendus restent valides. */
+  active: boolean;
+  /** Billets vendus (hors réservations annulées). */
+  sold: number;
+  /** Ventes brutes de la catégorie, au prix payé par chaque acheteur. */
+  revenue: number;
 }
 
 export interface EventItem {
@@ -107,6 +115,10 @@ export interface EventItem {
   tickets: EventTicket[];
   /** Null when no image/preset has been set — render a generic category icon instead. */
   imageUrl: string | null;
+  /** Visuel de l'événement (listes, cartes) — alias de `imageUrl`. */
+  logoUrl: string | null;
+  /** Image de couverture (page de détail) ; null tant qu'elle n'est pas fournie. */
+  coverUrl: string | null;
   /** Organisateur propriétaire ; null = événement de la plateforme (créé par l'admin). */
   organizerName?: string | null;
 }
@@ -192,7 +204,7 @@ export interface DashboardStats {
 // Types dupliqués depuis les équivalents ADMIN plutôt que partagés : même raisonnement que la
 // duplication assumée côté backend (organizer/* vs admin/* services) — Story 2.2.
 
-export type OrganizerEventStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'PUBLISHED' | 'REJECTED';
+export type OrganizerEventStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'PUBLISHED' | 'UNPUBLISHED' | 'REJECTED';
 
 export interface OrganizerEventItem {
   id: string;
@@ -209,6 +221,10 @@ export interface OrganizerEventItem {
   tickets: EventTicket[];
   /** Null tant qu'aucune image/logo prédéfini n'a été défini — afficher une icône générique. */
   imageUrl: string | null;
+  /** Visuel de l'événement (listes, cartes) — alias de `imageUrl`. */
+  logoUrl: string | null;
+  /** Image de couverture (page de détail) ; obligatoire pour publier. */
+  coverUrl: string | null;
 }
 
 export interface OrganizerStaffAgent {

@@ -1,25 +1,35 @@
 import { useEffect, useState } from 'react';
+
 import type { ViewId, ViewSection } from '../types';
+
 import { getEvents } from '../api/events';
 import { getOrganizers } from '../api/organizers';
 import { getAdminPayoutRequests } from '../api/payouts';
 import { getOrganizerNotifications } from '../api/organizerNotifications';
+
 import { Icon, type IconName } from './Icon';
 
-// Principes du menu (un seul niveau, pas d'accordéon) :
-// - une entrée = une destination (un objet métier) ; les statuts sont des onglets de filtre dans
-//   la page et les actions (« Nouvel événement ») des boutons dans la page ;
-// - les sous-vues d'une même page (Tarifs / Ventes…) sont des onglets en haut de la page ;
-// - les badges signalent ce qui attend une action, pas des totaux ;
-// - Notifications et Profil/Paramètres sont regroupés en bas, séparés du travail courant.
+/**
+ * Principes UX :
+ *
+ * - Navigation à un seul niveau.
+ * - Les statuts sont des filtres dans les pages.
+ * - Les sous-vues sont des onglets dans les pages.
+ * - Les actions métier sont dans le contenu des pages.
+ * - Les badges indiquent uniquement les éléments nécessitant une action.
+ * - Sidebar sobre : aucun gradient, aucune bordure latérale.
+ */
 
-type BadgeKey = 'eventsToReview' | 'organizersPending' | 'payoutsPending' | 'notifications';
+type BadgeKey =
+  | 'eventsToReview'
+  | 'organizersPending'
+  | 'payoutsPending'
+  | 'notifications';
+
 type Badges = Partial<Record<BadgeKey, number>>;
 
 interface NavItem {
-  /** Vue ouverte au clic. */
   view: ViewId;
-  /** Toutes les vues (onglets, fiches détail) qui gardent cette entrée surlignée. */
   matches: ViewId[];
   label: string;
   icon: IconName;
@@ -27,7 +37,6 @@ interface NavItem {
 }
 
 interface NavSection {
-  /** null = pas de libellé (premier bloc). */
   label: string | null;
   items: NavItem[];
 }
@@ -39,7 +48,12 @@ interface SidebarProps {
   role: 'ADMIN' | 'ORGANIZER';
 }
 
-const item = (view: ViewId, label: string, icon: IconName, extra: Partial<NavItem> = {}): NavItem => ({
+const item = (
+  view: ViewId,
+  label: string,
+  icon: IconName,
+  extra: Partial<NavItem> = {},
+): NavItem => ({
   view,
   matches: [view],
   label,
@@ -47,27 +61,47 @@ const item = (view: ViewId, label: string, icon: IconName, extra: Partial<NavIte
   ...extra,
 });
 
+/* -------------------------------------------------------------------------- */
+/* Navigation                                                                  */
+/* -------------------------------------------------------------------------- */
+
 const ADMIN_NAV: NavSection[] = [
-  { label: null, items: [item('dashboard', 'Tableau de bord', 'dashboard')] },
+  {
+    label: null,
+    items: [item('dashboard', 'Tableau de bord', 'dashboard')],
+  },
   {
     label: 'Catalogue',
     items: [
-      item('events', 'Événements', 'event', { matches: ['events', 'eventDetail'], badge: 'eventsToReview' }),
-      item('hotels', 'Hôtels', 'hotel', { matches: ['hotels', 'hotelDetail'] }),
+      item('events', 'Événements', 'event', {
+        matches: ['events', 'eventDetail'],
+        badge: 'eventsToReview',
+      }),
+      item('hotels', 'Hôtels', 'hotel', {
+        matches: ['hotels', 'hotelDetail'],
+      }),
     ],
   },
   {
     label: 'Activité',
     items: [
-      item('bookings', 'Réservations', 'booking', { matches: ['bookings', 'bookingDetail'] }),
-      item('adminTickets', 'Billets & contrôle', 'scan', { matches: ['adminTickets', 'adminScans'] }),
+      item('bookings', 'Réservations', 'booking', {
+        matches: ['bookings', 'bookingDetail'],
+      }),
+      item('adminTickets', 'Contrôle des billets', 'scan', {
+        matches: ['adminTickets', 'adminScans'],
+      }),
     ],
   },
   {
     label: 'Utilisateurs',
     items: [
-      item('clients', 'Clients', 'client', { matches: ['clients', 'clientDetail'] }),
-      item('agents', 'Agents contrôleurs', 'agent', { matches: ['agents', 'agentDetail'] }),
+      item('clients', 'Clients', 'client', {
+        matches: ['clients', 'clientDetail'],
+      }),
+      item('agents', 'Agents de contrôle', 'agent', {
+        matches: ['agents', 'agentDetail'],
+      }),
       item('organizersAdmin', 'Organisateurs', 'organizer', {
         matches: ['organizersAdmin', 'organizerAdminDetail'],
         badge: 'organizersPending',
@@ -77,14 +111,18 @@ const ADMIN_NAV: NavSection[] = [
   {
     label: 'Finances',
     items: [
-      item('adminPayouts', 'Reversements', 'wallet', { badge: 'payoutsPending' }),
+      item('adminPayouts', 'Reversements', 'wallet', {
+        badge: 'payoutsPending',
+      }),
       item('adminCommissions', 'Commissions', 'percent'),
     ],
   },
 ];
 
 const ADMIN_FOOTER: NavItem[] = [
-  item('adminNotifications', 'Notifications', 'bell', { badge: 'notifications' }),
+  item('adminNotifications', 'Notifications', 'bell', {
+    badge: 'notifications',
+  }),
   item('security', 'Paramètres', 'settings'),
 ];
 
@@ -93,10 +131,15 @@ const ORGANIZER_NAV: NavSection[] = [
     label: null,
     items: [
       item('organizerDashboard', 'Tableau de bord', 'dashboard'),
-      item('organizerEvents', 'Événements', 'event', { matches: ['organizerEvents', 'organizerEventDetail'] }),
+      item('organizerEvents', 'Événements', 'event', {
+      }),
       item('organizerTicketing', 'Billetterie', 'booking'),
-      item('organizerAgents', 'Agents contrôleurs', 'agent', {
-        matches: ['organizerAgents', 'organizerAgentDetail', 'organizerAssignments'],
+      item('organizerAgents', 'Agents de contrôle', 'agent', {
+        matches: [
+          'organizerAgents',
+          'organizerAgentDetail',
+          'organizerAssignments',
+        ],
       }),
       item('organizerFinance', 'Finances', 'wallet'),
     ],
@@ -104,9 +147,15 @@ const ORGANIZER_NAV: NavSection[] = [
 ];
 
 const ORGANIZER_FOOTER: NavItem[] = [
-  item('organizerNotifications', 'Notifications', 'bell', { badge: 'notifications' }),
-  item('organizerSettings', 'Profil', 'settings'),
+  item('organizerNotifications', 'Notifications', 'bell', {
+    badge: 'notifications',
+  }),
+  item('organizerSettings', 'Paramètres', 'settings'),
 ];
+
+/* -------------------------------------------------------------------------- */
+/* Badges                                                                      */
+/* -------------------------------------------------------------------------- */
 
 async function loadAdminBadges(): Promise<Badges> {
   const [events, organizers, payouts] = await Promise.all([
@@ -114,6 +163,7 @@ async function loadAdminBadges(): Promise<Badges> {
     getOrganizers('PENDING'),
     getAdminPayoutRequests('PENDING'),
   ]);
+
   return {
     eventsToReview: events.length,
     organizersPending: organizers.length,
@@ -124,12 +174,25 @@ async function loadAdminBadges(): Promise<Badges> {
 
 async function loadOrganizerBadges(): Promise<Badges> {
   const notifications = await getOrganizerNotifications();
-  return { notifications: notifications.filter((n) => !n.read).length };
+
+  return {
+    notifications: notifications.filter((notification) => !notification.read)
+      .length,
+  };
 }
 
+/* -------------------------------------------------------------------------- */
+/* Layout                                                                       */
+/* -------------------------------------------------------------------------- */
+
 const COLLAPSE_KEY = 'eticket-back-office.sidebar.collapsed';
-const EXPANDED_WIDTH = 248;
-const COLLAPSED_WIDTH = 76;
+
+const EXPANDED_WIDTH = 252;
+const COLLAPSED_WIDTH = 72;
+
+/* -------------------------------------------------------------------------- */
+/* Navigation item                                                              */
+/* -------------------------------------------------------------------------- */
 
 type NavButtonProps = Readonly<{
   entry: NavItem;
@@ -139,7 +202,13 @@ type NavButtonProps = Readonly<{
   onActivate: () => void;
 }>;
 
-function NavButton({ entry, active, collapsed, badge, onActivate }: NavButtonProps) {
+function NavButton({
+  entry,
+  active,
+  collapsed,
+  badge,
+  onActivate,
+}: NavButtonProps) {
   return (
     <button
       type="button"
@@ -154,28 +223,79 @@ function NavButton({ entry, active, collapsed, badge, onActivate }: NavButtonPro
         justifyContent: collapsed ? 'center' : 'space-between',
         gap: 10,
         width: '100%',
-        padding: collapsed ? '10px 0' : '9px 12px',
-        borderRadius: 8,
+        minHeight: 40,
+        padding: collapsed ? '9px 0' : '9px 10px',
+        marginBottom: 2,
+
+        border: 'none',
+        borderRadius: 7,
+
+        background: active ? '#F0F5F2' : 'transparent',
+        color: active ? '#176B3A' : '#4F5B55',
+
         cursor: 'pointer',
+        fontFamily: 'inherit',
         fontSize: 13.5,
         fontWeight: active ? 600 : 500,
-        marginBottom: 2,
-        background: active ? 'rgba(250,243,235,0.14)' : 'transparent',
-        color: active ? '#FAF3EB' : 'rgba(250,243,235,0.78)',
-        border: 'none',
-        borderLeft: active && !collapsed ? '3px solid #E9D3A8' : '3px solid transparent',
+
         textAlign: 'left',
+
+        transition:
+          'background-color 120ms ease, color 120ms ease',
       }}
     >
-      <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-        <Icon name={entry.icon} size={collapsed ? 18 : 16} />
-        {!collapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.label}</span>}
+      <span
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 11,
+          minWidth: 0,
+        }}
+      >
+        <span
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 20,
+            height: 20,
+            flexShrink: 0,
+            opacity: active ? 1 : 0.78,
+          }}
+        >
+          <Icon
+            name={entry.icon}
+            size={17}
+            color={active ? '#176B3A' : '#66736C'}
+          />
+        </span>
+
+        {!collapsed && (
+          <span
+            style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {entry.label}
+          </span>
+        )}
       </span>
+
       {badge > 0 &&
         (collapsed ? (
           <span
             aria-label={`${badge} à traiter`}
-            style={{ position: 'absolute', top: 6, right: 16, width: 8, height: 8, borderRadius: '50%', background: '#E9A23B' }}
+            style={{
+              position: 'absolute',
+              top: 7,
+              right: 8,
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: '#C67A19',
+            }}
           />
         ) : (
           <span
@@ -183,13 +303,22 @@ function NavButton({ entry, active, collapsed, badge, onActivate }: NavButtonPro
             aria-label={`${badge} à traiter`}
             style={{
               minWidth: 20,
-              padding: '1px 7px',
-              borderRadius: 999,
-              background: '#E9A23B',
-              color: '#1F2E35',
+              height: 20,
+              padding: '0 6px',
+
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+
+              borderRadius: 10,
+
+              background: '#F3E7D2',
+              color: '#855514',
+
               fontSize: 11,
-              fontWeight: 700,
-              textAlign: 'center',
+              fontWeight: 600,
+              lineHeight: 1,
+
               flexShrink: 0,
             }}
           >
@@ -200,9 +329,15 @@ function NavButton({ entry, active, collapsed, badge, onActivate }: NavButtonPro
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Sidebar                                                                      */
+/* -------------------------------------------------------------------------- */
+
 export function Sidebar(props: Readonly<SidebarProps>) {
   const { view, onNavigate, role } = props;
+
   const [badges, setBadges] = useState<Badges>({});
+
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem(COLLAPSE_KEY) === '1';
@@ -211,30 +346,38 @@ export function Sidebar(props: Readonly<SidebarProps>) {
     }
   });
 
-  // Rafraîchi à chaque navigation : une validation ou une décision faite sur une page doit
-  // faire baisser le badge dès qu'on la quitte.
   useEffect(() => {
     let cancelled = false;
-    (role === 'ADMIN' ? loadAdminBadges() : loadOrganizerBadges())
+
+    const loadBadges =
+      role === 'ADMIN' ? loadAdminBadges() : loadOrganizerBadges();
+
+    loadBadges
       .then((next) => {
-        if (!cancelled) setBadges(next);
+        if (!cancelled) {
+          setBadges(next);
+        }
       })
       .catch(() => {
-        // Badges purement indicatifs : un échec ne doit pas casser la navigation.
+        // Les badges sont indicatifs.
+        // Une erreur de chargement ne doit jamais bloquer la navigation.
       });
+
     return () => {
       cancelled = true;
     };
   }, [role, view]);
 
   const toggleCollapsed = () => {
-    setCollapsed((v) => {
-      const next = !v;
+    setCollapsed((current) => {
+      const next = !current;
+
       try {
         localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0');
       } catch {
-        // localStorage indisponible (mode privé, etc.) — le repli reste juste non persisté.
+        // La préférence reste simplement non persistée.
       }
+
       return next;
     });
   };
@@ -253,18 +396,8 @@ export function Sidebar(props: Readonly<SidebarProps>) {
     />
   );
 
-  const sectionLabelStyle: React.CSSProperties = {
-    fontFamily: "'Poppins',sans-serif",
-    fontSize: 10.5,
-    fontWeight: 700,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: 'rgba(250,243,235,0.5)',
-    padding: '16px 12px 6px',
-  };
-
   return (
-    <div
+    <aside
       className="bo-sidebar"
       style={{
         width: collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
@@ -272,102 +405,170 @@ export function Sidebar(props: Readonly<SidebarProps>) {
         position: 'sticky',
         top: 0,
         height: '100vh',
-        transition: 'width 0.18s ease',
+
+        background: '#FFFFFF',
+
+        transition: 'width 160ms ease',
       }}
     >
       <nav
         aria-label="Navigation principale"
         style={{
-          background: '#164A23',
-          color: '#FAF3EB',
           display: 'flex',
           flexDirection: 'column',
           height: '100%',
           overflowY: 'auto',
           overflowX: 'hidden',
+
+          background: '#FFFFFF',
+          color: '#17201B',
+
+          padding: '0 10px',
         }}
       >
+        {/* ---------------------------------------------------------------- */}
+        {/* Brand                                                            */}
+        {/* ---------------------------------------------------------------- */}
+
         <div
           style={{
-            padding: collapsed ? '22px 0 18px' : '22px 20px 18px',
-            borderBottom: '1px solid rgba(250,243,235,0.14)',
+            height: 72,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
+            justifyContent: collapsed ? 'center' : 'space-between',
             gap: 10,
+            padding: collapsed ? '0 8px' : '0 10px',
+
+            flexShrink: 0,
           }}
         >
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              background: '#A6741D',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <Icon name="event" size={18} color="#FAF3EB" />
-          </div>
           {!collapsed && (
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: 19, fontWeight: 800, letterSpacing: 0.3 }}>
-                <span style={{ color: '#E9D3A8' }}>E</span>-<span style={{ color: '#FAF3EB' }}>TICKET</span>
+              <div
+                style={{
+                  fontSize: 17,
+                  fontWeight: 700,
+                  letterSpacing: '-0.3px',
+                  color: '#17201B',
+                  lineHeight: 1.2,
+                }}
+              >
+                E-TICKET
               </div>
-              <div style={{ fontSize: 11.5, color: 'rgba(250,243,235,0.65)', marginTop: 1 }}>
-                {role === 'ADMIN' ? 'Administration' : 'Espace organisateur'}
+
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: 11.5,
+                  color: '#7A847F',
+                  lineHeight: 1.2,
+                }}
+              >
+                {role === 'ADMIN'
+                  ? 'Administration'
+                  : 'Espace organisateur'}
               </div>
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label={
+              collapsed ? 'Développer le menu' : 'Réduire le menu'
+            }
+            title={collapsed ? 'Développer le menu' : 'Réduire le menu'}
+            style={{
+              width: 32,
+              height: 32,
+
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+
+              border: 'none',
+              borderRadius: 6,
+
+              background: '#F5F7F6',
+              color: '#59655F',
+
+              cursor: 'pointer',
+              flexShrink: 0,
+
+              transition: 'background-color 120ms ease',
+            }}
+          >
+            <Icon
+              name={collapsed ? 'expand' : 'collapse'}
+              size={15}
+              color="#59655F"
+            />
+          </button>
         </div>
 
-        <div style={{ padding: collapsed ? '12px 8px' : '12px 10px', flex: 1 }}>
-          {sections.map((section) => (
-            <div key={section.label ?? 'main'}>
-              {section.label &&
-                (collapsed ? (
-                  <div style={{ borderTop: '1px solid rgba(250,243,235,0.12)', margin: '10px 6px' }} />
-                ) : (
-                  <div style={sectionLabelStyle}>{section.label}</div>
-                ))}
+        {/* ---------------------------------------------------------------- */}
+        {/* Main navigation                                                  */}
+        {/* ---------------------------------------------------------------- */}
+
+        <div
+          style={{
+            flex: 1,
+            padding: '8px 2px',
+          }}
+        >
+          {sections.map((section, sectionIndex) => (
+            <div
+              key={section.label ?? `section-${sectionIndex}`}
+              style={{
+                marginBottom: sectionIndex < sections.length - 1 ? 18 : 0,
+              }}
+            >
+              {section.label && !collapsed && (
+                <div
+                  style={{
+                    padding: '10px 10px 7px',
+
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    letterSpacing: '0.7px',
+                    textTransform: 'uppercase',
+
+                    color: '#98A19C',
+                  }}
+                >
+                  {section.label}
+                </div>
+              )}
+
+              {section.label && collapsed && (
+                <div
+                  aria-hidden="true"
+                  style={{
+                    height: 1,
+                    margin: '10px 8px 12px',
+                    background: '#F0F2F1',
+                  }}
+                />
+              )}
+
               {section.items.map(renderItem)}
             </div>
           ))}
         </div>
 
-        <div style={{ padding: collapsed ? '10px 8px' : '10px', borderTop: '1px solid rgba(250,243,235,0.14)' }}>
+        {/* ---------------------------------------------------------------- */}
+        {/* Footer navigation                                                */}
+        {/* ---------------------------------------------------------------- */}
+
+        <div
+          style={{
+            padding: '10px 2px 12px',
+            marginTop: 'auto',
+          }}
+        >
           {footer.map(renderItem)}
         </div>
       </nav>
-
-      <button
-        type="button"
-        onClick={toggleCollapsed}
-        aria-label={collapsed ? 'Développer le menu' : 'Réduire le menu'}
-        title={collapsed ? 'Développer le menu' : 'Réduire le menu'}
-        style={{
-          position: 'absolute',
-          top: 26,
-          right: -12,
-          width: 24,
-          height: 24,
-          borderRadius: '50%',
-          border: '1px solid rgba(250,243,235,0.25)',
-          background: '#0F3419',
-          color: '#FAF3EB',
-          fontSize: 12,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
-          zIndex: 10,
-        }}
-      >
-        <Icon name={collapsed ? 'expand' : 'collapse'} size={14} />
-      </button>
-    </div>
+    </aside>
   );
 }

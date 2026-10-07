@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { createOrganizerEvent, findAdminEventByName } from './api';
-import { ADMIN, expect, navTo, tab, test, uiLogin } from './fixtures';
+import { addCategory, ADMIN, expect, navTo, tab, test, uiLogin } from './fixtures';
 
 const COVER_PNG = path.resolve('e2e/assets/cover.png');
 
@@ -72,20 +72,21 @@ test.describe('Espace ADMIN', () => {
     await navTo(page, 'events');
     await page.getByRole('button', { name: '+ Nouvel événement' }).click();
 
-    const cover = page.getByTestId('cover-field');
+    const cover = page.getByTestId('logo-field');
     await expect(cover).toBeVisible();
-    await expect(page.getByTestId('cover-caption')).toContainText('logo de la catégorie');
+    await expect(page.getByTestId('logo-caption')).toContainText('visuel de la catégorie');
     await page.locator('#field-category').selectOption('SPORT');
-    await expect(page.getByTestId('cover-caption')).toContainText('Sport');
+    await expect(page.getByTestId('logo-caption')).toContainText('Sport');
 
-    await cover.getByRole('button', { name: 'Logo Théâtre' }).click();
-    await expect(page.getByTestId('cover-caption')).toHaveText('Théâtre');
+    await cover.getByRole('button', { name: 'Visuel Théâtre' }).click();
+    await expect(page.getByTestId('logo-caption')).toHaveText('Théâtre');
 
     await page.locator('#field-name').fill(name);
     await page.locator('#field-city').fill('Bamako');
     await page.locator('#field-location').fill('Stade du 26 mars');
     await page.locator('#field-date').fill('2027-03-01T18:00');
-    await page.getByLabel('Prix du tarif Standard').fill('5000');
+    await addCategory(page, { name: 'Standard', price: '5000' });
+    await page.getByLabel('Importer une image de couverture').setInputFiles(COVER_PNG);
     await page.getByRole('button', { name: 'Créer', exact: true }).click();
     await expect(page.getByText(`Événement ${name} créé et publié avec succès`)).toBeVisible();
 
@@ -97,14 +98,15 @@ test.describe('Espace ADMIN', () => {
     const name = `E2E Admin Upload ${Date.now()}`;
     await navTo(page, 'events');
     await page.getByRole('button', { name: '+ Nouvel événement' }).click();
-    await page.getByLabel('Importer une image de couverture').setInputFiles(COVER_PNG);
-    await expect(page.getByTestId('cover-caption')).toHaveText('cover.png');
+    await page.getByLabel('Importer un visuel').setInputFiles(COVER_PNG);
+    await expect(page.getByTestId('logo-caption')).toHaveText('cover.png');
 
     await page.locator('#field-name').fill(name);
     await page.locator('#field-city').fill('Bamako');
     await page.locator('#field-location').fill('Palais des sports');
     await page.locator('#field-date').fill('2027-04-01T18:00');
-    await page.getByLabel('Prix du tarif Standard').fill('5000');
+    await addCategory(page, { name: 'Standard', price: '5000' });
+    await page.getByLabel('Importer une image de couverture').setInputFiles(COVER_PNG);
     await page.getByRole('button', { name: 'Créer', exact: true }).click();
     await expect(page.getByText(`Événement ${name} créé et publié avec succès`)).toBeVisible();
 
@@ -133,13 +135,28 @@ test.describe('Espace ADMIN', () => {
     await page.locator('#field-city').fill('Bamako');
     await page.locator('#field-location').fill('Stade Modibo Keïta');
     await page.locator('#field-date').fill('2027-06-01T16:00');
-    await page.getByLabel('Prix du tarif Standard').fill('0');
+    await addCategory(page, { name: 'Standard', price: '0' });
+    await page.getByLabel('Importer une image de couverture').setInputFiles(COVER_PNG);
     await page.getByRole('button', { name: 'Créer', exact: true }).click();
     await expect(page.getByText(`Événement ${name} créé et publié avec succès`)).toBeVisible();
 
     const created = await findAdminEventByName(adminToken, name);
     expect(created?.status).toBe('PUBLISHED');
     expect(created?.tickets).toEqual([expect.objectContaining({ type: 'STANDARD', price: 0 })]);
+  });
+
+  test('événement de la plateforme : la couverture est exigée dès la création', async ({ page, adminToken }) => {
+    const name = `E2E Sans couverture admin ${Date.now()}`;
+    await navTo(page, 'events');
+    await page.getByRole('button', { name: '+ Nouvel événement' }).click();
+    await page.locator('#field-name').fill(name);
+    await page.locator('#field-city').fill('Bamako');
+    await page.locator('#field-location').fill('CICB');
+    await page.locator('#field-date').fill('2027-07-01T16:00');
+    await addCategory(page, { name: 'Standard', price: '1000' });
+    await page.getByRole('button', { name: 'Créer', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('Ajoutez une image de couverture');
+    expect(await findAdminEventByName(adminToken, name)).toBeUndefined();
   });
 
   test('commissions : taux spécifique puis retour au taux par défaut', async ({ page, organizer }) => {
@@ -167,13 +184,13 @@ test.describe('Espace ADMIN', () => {
     await expect(page.getByRole('alert')).toContainText('entre 0 et 100');
   });
 
-  test('billets & contrôle : onglets Manifestes et Scans', async ({ page, adminToken, organizer }) => {
+  test('contrôle des billets : onglets Listes de participants et Scans', async ({ page, adminToken, organizer }) => {
     const event = await createOrganizerEvent(organizer, { approveWith: adminToken, publish: true });
     await page.reload();
     await navTo(page, 'adminTickets');
-    await expect(tab(page, 'Manifestes')).toHaveAttribute('aria-selected', 'true');
+    await expect(tab(page, 'Listes de participants')).toHaveAttribute('aria-selected', 'true');
     await page.getByLabel('Événement').selectOption(event.id);
-    await expect(page.getByText(/Manifeste \(0\)/)).toBeVisible();
+    await expect(page.getByText(/Liste des participants \(0\)/)).toBeVisible();
 
     await tab(page, 'Scans').click();
     // L'entrée de menu reste la même pour les deux onglets.

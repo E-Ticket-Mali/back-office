@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 /** Accès direct à l'API pour préparer les données des tests (arrange), l'UI servant à l'act/assert. */
 
 // 127.0.0.1 plutôt que localhost : sous Windows, Node tente d'abord ::1 et la connexion peut caler.
@@ -76,7 +79,7 @@ export interface TestEvent {
 /** Crée un événement (brouillon) avec un tarif ; `submit`/`approve` pour avancer dans le workflow. */
 export async function createOrganizerEvent(
   organizer: TestOrganizer,
-  opts: { name?: string; submit?: boolean; approveWith?: string; publish?: boolean; capacity?: number } = {},
+  opts: { name?: string; submit?: boolean; approveWith?: string; publish?: boolean; capacity?: number; cover?: boolean } = {},
 ): Promise<TestEvent> {
   const name = opts.name ?? `E2E Concert ${Date.now()}`;
   const date = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().slice(0, 19) + 'Z';
@@ -88,8 +91,14 @@ export async function createOrganizerEvent(
   await call(`/organizer/events/${event.id}/ticket-types`, {
     method: 'POST',
     token: organizer.token,
-    body: JSON.stringify({ type: 'STANDARD', price: 5000, capacity: opts.capacity ?? 100 }),
+    body: JSON.stringify({ type: 'STANDARD', name: 'Standard', price: 5000, capacity: opts.capacity ?? 100 }),
   });
+  // La couverture est requise pour publier ; envoyée avant toute soumission (pas de re-revue sur un brouillon).
+  if (opts.cover !== false) {
+    const form = new FormData();
+    form.append('file', new Blob([fs.readFileSync(path.resolve('e2e/assets/cover.png'))], { type: 'image/png' }), 'cover.png');
+    await call(`/organizer/events/${event.id}/cover`, { method: 'POST', token: organizer.token, body: form });
+  }
   if (opts.submit || opts.approveWith) {
     await call(`/organizer/events/${event.id}/submit`, { method: 'POST', token: organizer.token });
   }
@@ -119,7 +128,9 @@ export interface EventSummary {
   name: string;
   status: string;
   imageUrl: string | null;
-  tickets: { type: string; price: number; capacity: number | null }[];
+  logoUrl: string | null;
+  coverUrl: string | null;
+  tickets: { type: string; name: string; price: number; capacity: number | null; active: boolean; sold: number }[];
 }
 
 export async function findOrganizerEventByName(organizer: TestOrganizer, name: string): Promise<EventSummary | undefined> {

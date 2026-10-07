@@ -9,9 +9,10 @@ import type { OrganizerEventStatus, ViewId, ViewSection } from '../types';
 
 const STATUS_LABEL: Record<OrganizerEventStatus, string> = {
   DRAFT: 'Brouillons',
-  PENDING_APPROVAL: 'En attente de validation',
+  PENDING_APPROVAL: 'En cours de validation',
   APPROVED: 'Validés, à publier',
   PUBLISHED: 'Publiés',
+  UNPUBLISHED: 'Dépubliés',
   REJECTED: 'Rejetés',
 };
 
@@ -27,7 +28,7 @@ export function OrganizerDashboardView({ onNavigate }: OrganizerDashboardViewPro
   const dash = dashRows[0];
   if (!dash) return <ErrorState message="Statistiques indisponibles." />;
 
-  const statuses: OrganizerEventStatus[] = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED'];
+  const statuses: OrganizerEventStatus[] = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'UNPUBLISHED', 'REJECTED'];
 
   const kpis = [
     ...statuses.map((s) => ({

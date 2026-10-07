@@ -1,395 +1,162 @@
 import { useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   addOrganizerTicketType,
-  clearOrganizerEventImage,
   clearOrganizerTicketTypeImage,
-  deleteOrganizerTicketType,
   exportManifest,
   getOrganizerEvent,
-  setOrganizerEventImagePreset,
+  publishOrganizerEvent,
   setOrganizerTicketTypeImagePreset,
   submitOrganizerEvent,
-  publishOrganizerEvent,
   unpublishOrganizerEvent,
   updateOrganizerTicketType,
-  uploadOrganizerEventImage,
   uploadOrganizerTicketTypeImage,
 } from '../api/organizerEvents';
-import { useCollection } from '../hooks/useCollection';
 import { useActionError } from '../hooks/useActionError';
-import { FreePill, TicketTypePill } from '../components/Pill';
-import { LoadingState } from '../components/LoadingState';
-import { ImagePicker } from '../components/ImagePicker';
-import { PublishDialog } from '../components/PublishDialog';
-import type { EventTicket, OrganizerEventItem, OrganizerEventStatus, TicketType } from '../types';
+import { useCollection } from '../hooks/useCollection';
 import { Icon, CategoryIcon } from '../components/Icon';
+import { ImagePicker } from '../components/ImagePicker';
+import { KpiCard } from '../components/KpiCard';
+import { LoadingState, ErrorState } from '../components/LoadingState';
+import { Modal } from '../components/Modal';
+import { PublishDialog } from '../components/PublishDialog';
+import { TicketCategoryModal } from '../components/TicketCategoryModal';
+import { Tabs } from '../components/ui';
+import { cardStyle, formatFcfa, mutedText, outlineButtonStyle, primaryButtonStyle } from '../components/uiStyles';
+import { isOrganizerEventEditable, ORGANIZER_STATUS_LABEL } from '../utils/eventLabels';
+import type { EventTicket, OrganizerEventItem, OrganizerEventStatus, ViewId } from '../types';
 import { GOLD, GREEN } from '../theme';
-
-/** Seule une validation en cours verrouille l'événement ; une modification publiée déclenche une nouvelle revue. */
-function isOrganizerEventEditable(status: OrganizerEventStatus): boolean {
-  return status !== 'PENDING_APPROVAL';
-}
-
-interface OrganizerEventDetailViewProps {
-  event: OrganizerEventItem;
-  onBack: () => void;
-}
-
-const cardStyle: React.CSSProperties = {
-  background: '#FFFFFF',
-  border: '1px solid #E7DED0',
-  borderRadius: 12,
-  padding: 22,
-  boxShadow: '0 2px 8px rgba(31,46,53,0.06)',
-};
-
-const cardTitleStyle: React.CSSProperties = {
-  fontFamily: "'Poppins',sans-serif",
-  fontSize: 14.5,
-  fontWeight: 700,
-  marginBottom: 16,
-};
-
-const rowStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '10px 14px',
-  background: '#FAF3EB',
-  borderRadius: 8,
-};
-
-const selectStyle: React.CSSProperties = {
-  padding: '7px 10px',
-  border: '1.5px solid #E7DED0',
-  borderRadius: 7,
-  fontSize: 12,
-  background: '#FFFFFF',
-  color: '#1F2E35',
-};
-
-const smallBtn = (color: string): React.CSSProperties => ({
-  padding: '6px 10px',
-  border: `1px solid ${color}`,
-  background: 'transparent',
-  color,
-  borderRadius: 6,
-  fontSize: 11.5,
-  fontWeight: 600,
-  cursor: 'pointer',
-  flexShrink: 0,
-});
-
-const bigBtn = (color: string, textColor = '#FAF3EB'): React.CSSProperties => ({
-  padding: '10px 18px',
-  border: 'none',
-  background: color,
-  color: textColor,
-  borderRadius: 8,
-  fontFamily: "'Poppins',sans-serif",
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: 'pointer',
-});
-
-const TICKET_TYPES: TicketType[] = ['VIP', 'STANDARD', 'EARLY_BIRD'];
-const TICKET_LABELS: Record<TicketType, string> = { VIP: 'Billet VIP', STANDARD: 'Billet Standard', EARLY_BIRD: 'Billet Early Bird' };
-
-const STATUS_LABEL: Record<OrganizerEventStatus, string> = {
-  DRAFT: 'Brouillon',
-  PENDING_APPROVAL: 'En attente de validation',
-  APPROVED: 'Validé (non publié)',
-  PUBLISHED: 'Publié',
-  REJECTED: 'Rejeté',
-};
 
 const STATUS_COLOR: Record<OrganizerEventStatus, [string, string]> = {
   DRAFT: [GOLD, 'rgba(166,116,29,0.12)'],
   PENDING_APPROVAL: ['#9A7800', 'rgba(252,209,22,0.2)'],
   APPROVED: ['#1D5C8A', 'rgba(29,92,138,0.12)'],
   PUBLISHED: [GREEN, 'rgba(22,74,35,0.1)'],
+  UNPUBLISHED: ['#6B6459', 'rgba(107,100,89,0.14)'],
   REJECTED: ['#CE1126', 'rgba(206,17,38,0.12)'],
 };
 
-export function OrganizerEventDetailView(props: Readonly<OrganizerEventDetailViewProps>) {
-  const { event: initialEvent, onBack } = props;
-  const { data: eventRows, loading: eventLoading, reload: reloadEvent } = useCollection(() =>
-    getOrganizerEvent(initialEvent.id).then((e) => [e])
-  );
+type DetailTab = 'overview' | 'ticketing' | 'sales' | 'control' | 'finances';
+const TABS: { id: DetailTab; label: string }[] = [
+  { id: 'overview', label: "Vue d'ensemble" },
+  { id: 'ticketing', label: 'Billetterie' },
+  { id: 'sales', label: 'Ventes de billets' },
+  { id: 'control', label: 'Contrôle des billets' },
+  { id: 'finances', label: 'Finances' },
+];
 
-  const [newType, setNewType] = useState<TicketType>('STANDARD');
-  const [newPrice, setNewPrice] = useState('');
-  const [newCapacity, setNewCapacity] = useState('');
-  const [editingType, setEditingType] = useState<Record<string, string>>({});
+const cardTitle: React.CSSProperties = { fontFamily: "'Poppins',sans-serif", fontSize: 14.5, fontWeight: 700, marginBottom: 14 };
+const fmtPrice = (price: number) => (price === 0 ? 'Gratuit' : formatFcfa(price));
+const totalSold = (tickets: EventTicket[]) => tickets.reduce((n, t) => n + t.sold, 0);
+const totalRevenue = (tickets: EventTicket[]) => tickets.reduce((n, t) => n + t.revenue, 0);
+
+type OrganizerEventDetailViewProps = Readonly<{
+  eventId: string;
+  onNavigateView: (view: ViewId) => void;
+}>;
+
+/** Page d'un événement : en-tête (statut, actions) puis onglets Vue d'ensemble, Billetterie, Ventes, Contrôle, Finances. */
+export function OrganizerEventDetailView({ eventId, onNavigateView }: OrganizerEventDetailViewProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [params, setParams] = useSearchParams();
+  const { data: rows, loading, error, reload } = useCollection(() => getOrganizerEvent(eventId).then((e) => [e]));
   const [publishMode, setPublishMode] = useState<'publish' | 'unpublish' | null>(null);
   const { run, banner } = useActionError();
 
-  if (eventLoading || eventRows.length === 0) {
-    return <LoadingState label="Chargement de l'événement…" />;
-  }
-  const event = eventRows[0];
+  const tabParam = params.get('tab');
+  const tab: DetailTab = TABS.some((t) => t.id === tabParam) ? (tabParam as DetailTab) : 'overview';
+  const warnings = (location.state as { warnings?: string[] } | null)?.warnings ?? [];
+
+  if (loading) return <LoadingState label="Chargement de l'événement…" />;
+  if (error) return <ErrorState message={error} />;
+  const event = rows[0];
+  if (!event) return <ErrorState message="Événement introuvable." />;
+
   const editable = isOrganizerEventEditable(event.status);
-  // Soumettre n'a de sens qu'avant validation ; ensuite, l'organisateur publie / dépublie lui-même.
-  const canSubmit = (event.status === 'DRAFT' || event.status === 'REJECTED') && event.tickets.length > 0;
+  const canSubmit = (event.status === 'DRAFT' || event.status === 'REJECTED') && event.tickets.some((t) => t.active);
+  const missingCover = event.coverUrl == null;
   const [statusColor, statusBg] = STATUS_COLOR[event.status];
-
-  const addNewTicketType = () =>
-    run(async () => {
-      const price = Number(newPrice);
-      if (newPrice.trim() === '' || !(price >= 0)) throw new Error('Renseignez un prix (0 pour un billet gratuit).');
-      const capacity = newCapacity.trim() === '' ? undefined : Number(newCapacity);
-      if (capacity !== undefined && (!Number.isInteger(capacity) || capacity < 1)) {
-        throw new Error('La capacité doit être un entier d’au moins 1 (laisser vide = illimitée).');
-      }
-      await addOrganizerTicketType(event.id, { type: newType, price, capacity });
-      setNewPrice('');
-      setNewCapacity('');
-      reloadEvent();
-    });
-
-  const startEditType = (tt: EventTicket) => setEditingType((r) => ({ ...r, [tt.id]: String(tt.price) }));
-
-  const saveType = (tt: EventTicket) =>
-    run(async () => {
-      const price = editingType[tt.id];
-      if (!price) return;
-      await updateOrganizerTicketType(event.id, tt.id, { price: Number(price) });
-      setEditingType((r) => {
-        const { [tt.id]: _removed, ...rest } = r;
-        return rest;
-      });
-      reloadEvent();
-    });
-
-  const removeType = (tt: EventTicket) =>
-    run(async () => {
-      await deleteOrganizerTicketType(event.id, tt.id);
-      reloadEvent();
-    });
-
-  const submitForValidation = () =>
-    run(async () => {
-      await submitOrganizerEvent(event.id);
-      reloadEvent();
-    });
-
-  const downloadManifest = () =>
-    run(async () => {
-      await exportManifest(event.id);
-    });
 
   return (
     <div className="bo-page">
       <button
         type="button"
-        onClick={onBack}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          fontSize: 13,
-          fontWeight: 600,
-          color: '#164A23',
-          cursor: 'pointer',
-          marginBottom: 18,
-          background: 'transparent',
-          border: 'none',
-          padding: 0,
-        }}
+        onClick={() => navigate('/organizer/events')}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#164A23', cursor: 'pointer', marginBottom: 18, background: 'transparent', border: 'none', padding: 0 }}
       >
-        <Icon name="back" size={15} /> Retour aux événements
+        <Icon name="back" size={15} /> Mes événements
       </button>
       {banner}
+      {warnings.map((w) => (
+        <div key={w} role="alert" style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 8, background: 'rgba(252,209,22,0.18)', color: '#6B5400', fontSize: 13 }}>
+          {w}
+        </div>
+      ))}
 
-      <div
-        className="bo-hero"
-        style={{
-          background: 'linear-gradient(135deg,#164A23,#0F3419)',
-          borderRadius: 14,
-          padding: '26px 28px',
-          marginBottom: 20,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-          <span style={{ fontSize: 12, color: 'rgba(250,243,235,0.7)', fontWeight: 600 }}>
-            {event.city} · {event.location}
-          </span>
-          <span
-            style={{
-              fontFamily: "'Poppins',sans-serif",
-              fontSize: 10.5,
-              fontWeight: 700,
-              padding: '3px 10px',
-              borderRadius: 999,
-              color: statusColor,
-              background: statusBg,
-            }}
-          >
-            {STATUS_LABEL[event.status]}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
+        <div>
+          <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: 24, fontWeight: 800, color: '#1F2E35' }}>
+            <CategoryIcon category={event.category} size={24} /> {event.name}
+          </div>
+          <span style={{ display: 'inline-block', marginTop: 6, fontFamily: "'Poppins',sans-serif", fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, color: statusColor, background: statusBg }}>
+            {ORGANIZER_STATUS_LABEL[event.status]}
           </span>
         </div>
-        <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: 26, fontWeight: 800, color: '#FAF3EB' }}>
-          <CategoryIcon category={event.category} size={26} /> {event.name}
-        </div>
-        <div style={{ fontSize: 13, color: 'rgba(250,243,235,0.75)', marginTop: 4 }}>
-          {new Date(event.date).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}
-        </div>
-        {event.desc && <div style={{ fontSize: 13, color: 'rgba(250,243,235,0.85)', marginTop: 10 }}>{event.desc}</div>}
-
-        <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {canSubmit && (
-            <button type="button" onClick={submitForValidation} style={bigBtn('#A6741D')}>
+            <button type="button" style={primaryButtonStyle} onClick={() => run(async () => { await submitOrganizerEvent(event.id); reload(); })}>
               Soumettre pour validation
             </button>
           )}
-          {event.status === 'APPROVED' && (
-            <button type="button" onClick={() => setPublishMode('publish')} style={bigBtn('#A6741D')}>
-              Publier
+          {(event.status === 'APPROVED' || event.status === 'UNPUBLISHED') && (
+            <button
+              type="button"
+              style={{ ...primaryButtonStyle, opacity: missingCover ? 0.5 : 1, cursor: missingCover ? 'not-allowed' : 'pointer' }}
+              disabled={missingCover}
+              title={missingCover ? "Ajoutez une image de couverture pour publier" : undefined}
+              onClick={() => setPublishMode('publish')}
+            >
+              {event.status === 'UNPUBLISHED' ? 'Republier' : 'Publier'}
             </button>
           )}
           {event.status === 'PUBLISHED' && (
-            <button type="button" onClick={() => setPublishMode('unpublish')} style={bigBtn('rgba(250,243,235,0.16)')}>
+            <button type="button" style={outlineButtonStyle} onClick={() => setPublishMode('unpublish')}>
               Dépublier
             </button>
           )}
-          <button type="button" onClick={downloadManifest} style={bigBtn('rgba(250,243,235,0.16)')}>
-            Exporter le manifeste
-          </button>
+          {editable && (
+            <button type="button" style={outlineButtonStyle} onClick={() => navigate(`/organizer/events/${event.id}/edit`)}>
+              Modifier
+            </button>
+          )}
         </div>
       </div>
 
       {event.status === 'REJECTED' && event.rejectionReason && (
-        <div
-          style={{
-            marginBottom: 20,
-            padding: '14px 18px',
-            borderRadius: 10,
-            border: '1px solid #F5DCD4',
-            background: '#FBEDE8',
-            color: '#8A2E17',
-            fontSize: 13.5,
-          }}
-        >
-          <strong>Motif du rejet :</strong> {event.rejectionReason}
+        <div style={{ marginBottom: 18, padding: '14px 18px', borderRadius: 10, border: '1px solid #F5DCD4', background: '#FBEDE8', color: '#8A2E17', fontSize: 13.5 }}>
+          <strong>Motif du rejet :</strong> {event.rejectionReason}. Corrigez l&apos;événement puis soumettez-le à nouveau.
+        </div>
+      )}
+      {missingCover && event.status !== 'PUBLISHED' && (
+        <div style={{ marginBottom: 18, padding: '12px 16px', borderRadius: 10, background: 'rgba(252,209,22,0.18)', color: '#6B5400', fontSize: 13 }}>
+          Aucune image de couverture : elle est requise pour publier l&apos;événement.{' '}
+          {editable && (
+            <button type="button" onClick={() => navigate(`/organizer/events/${event.id}/edit`)} style={{ background: 'none', border: 'none', color: '#164A23', fontWeight: 700, cursor: 'pointer', padding: 0 }}>
+              Ajouter une couverture
+            </button>
+          )}
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-        <div className="bo-card" style={cardStyle}>
-          <div style={cardTitleStyle}>Image de l'événement</div>
-          {editable ? (
-            <ImagePicker
-              clearLabel="Revenir au logo de la catégorie"
-              imageUrl={event.imageUrl}
-              size={140}
-              onUpload={(file) => uploadOrganizerEventImage(event.id, file).then(() => reloadEvent())}
-              onSelectPreset={(key) => setOrganizerEventImagePreset(event.id, key).then(() => reloadEvent())}
-              onClear={() => clearOrganizerEventImage(event.id).then(() => reloadEvent())}
-            />
-          ) : event.imageUrl ? (
-            <img src={event.imageUrl} alt="" style={{ width: 140, height: 140, borderRadius: 12, objectFit: 'cover' }} />
-          ) : (
-            <div style={{ fontSize: 12.5, color: '#6B6459' }}>Aucune image définie.</div>
-          )}
-        </div>
+      <Tabs tabs={TABS} active={tab} onChange={(id) => setParams(id === 'overview' ? {} : { tab: id }, { replace: true, state: location.state })} />
 
-        <div className="bo-card" style={cardStyle}>
-          <div style={cardTitleStyle}>Types de billets</div>
+      {tab === 'overview' && <OverviewTab event={event} />}
+      {tab === 'ticketing' && <TicketingTab event={event} editable={editable} reload={reload} run={run} />}
+      {tab === 'sales' && <SalesTab event={event} />}
+      {tab === 'control' && <ControlTab event={event} run={run} onOpenAssignments={() => onNavigateView('organizerAssignments')} />}
+      {tab === 'finances' && <FinancesTab event={event} onOpenFinance={() => onNavigateView('organizerFinance')} />}
 
-          {editable ? (
-            <div className="bo-compact-form-row" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-              <select value={newType} onChange={(e) => setNewType(e.target.value as TicketType)} style={selectStyle}>
-                {TICKET_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {TICKET_LABELS[t]}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="number"
-                placeholder="Prix en FCFA (0 = gratuit)"
-                value={newPrice}
-                onChange={(e) => setNewPrice(e.target.value)}
-                style={{ ...selectStyle, flex: 1 }}
-              />
-              <input
-                type="number"
-                min={1}
-                placeholder="Places (illimité si vide)"
-                value={newCapacity}
-                onChange={(e) => setNewCapacity(e.target.value)}
-                style={{ ...selectStyle, flex: 1 }}
-              />
-              <button type="button" onClick={addNewTicketType} style={smallBtn('#164A23')}>
-                Ajouter
-              </button>
-            </div>
-          ) : (
-            <div style={{ fontSize: 12.5, color: '#6B6459', marginBottom: 16 }}>
-              Cet événement n’est plus modifiable (statut « {STATUS_LABEL[event.status]} »).
-            </div>
-          )}
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {event.tickets.length === 0 && <div style={{ fontSize: 13, color: '#6B6459' }}>Aucun type de billet.</div>}
-            {event.tickets.map((tt) => {
-              const draft = editingType[tt.id];
-              return (
-                <div key={tt.id} style={rowStyle}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {editable ? (
-                      <ImagePicker
-                        imageUrl={tt.imageUrl ?? null}
-                        size={40}
-                        onUpload={(file) => uploadOrganizerTicketTypeImage(event.id, tt.id, file).then(() => reloadEvent())}
-                        onSelectPreset={(key) => setOrganizerTicketTypeImagePreset(event.id, tt.id, key).then(() => reloadEvent())}
-                        onClear={() => clearOrganizerTicketTypeImage(event.id, tt.id).then(() => reloadEvent())}
-                      />
-                    ) : (
-                      tt.imageUrl && (
-                        <img src={tt.imageUrl} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover' }} />
-                      )
-                    )}
-                    <TicketTypePill type={tt.type} />
-                    {tt.price === 0 && <FreePill />}
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1F2E35' }}>{TICKET_LABELS[tt.type]}</span>
-                  </div>
-                  {editable && draft !== undefined ? (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <input
-                        type="number"
-                        value={draft}
-                        onChange={(e) => setEditingType((r) => ({ ...r, [tt.id]: e.target.value }))}
-                        style={{ ...selectStyle, width: 110 }}
-                      />
-                      <button type="button" onClick={() => saveType(tt)} style={smallBtn('#164A23')}>
-                        Enregistrer
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                      <span style={{ fontSize: 12, color: '#6B6459' }}>
-                        {tt.price === 0 ? '0 FCFA' : `${tt.price.toLocaleString('fr-FR')} FCFA`} ·{' '}
-                        {tt.capacity == null ? 'illimité' : `${tt.remaining ?? 0}/${tt.capacity} restant(s)`}
-                      </span>
-                      {editable && (
-                        <>
-                          <button type="button" onClick={() => startEditType(tt)} style={smallBtn('#164A23')}>
-                            Modifier
-                          </button>
-                          <button type="button" onClick={() => removeType(tt)} style={smallBtn('#A6341D')}>
-                            Supprimer
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
       {publishMode && (
         <PublishDialog
           mode={publishMode}
@@ -399,10 +166,262 @@ export function OrganizerEventDetailView(props: Readonly<OrganizerEventDetailVie
             if (publishMode === 'publish') await publishOrganizerEvent(event.id);
             else await unpublishOrganizerEvent(event.id);
             setPublishMode(null);
-            reloadEvent();
+            reload();
           }}
         />
       )}
+    </div>
+  );
+}
+
+function OverviewTab({ event }: Readonly<{ event: OrganizerEventItem }>) {
+  const sold = totalSold(event.tickets);
+  const unlimited = event.tickets.some((t) => t.active && t.capacity == null);
+  const available = event.tickets.filter((t) => t.active).reduce((n, t) => n + (t.remaining ?? 0), 0);
+  return (
+    <div style={{ display: 'grid', gap: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
+        <KpiCard label="Billets vendus" value={sold} sub="" color={GREEN} />
+        <KpiCard label="Billets disponibles" value={unlimited ? 'Illimité' : available} sub="" color={GOLD} />
+        <KpiCard label="Revenus" value={formatFcfa(totalRevenue(event.tickets))} sub="ventes brutes" color="#1D5C8A" />
+      </div>
+      <div className="bo-card" style={{ ...cardStyle, padding: 22 }}>
+        <div style={cardTitle}>Informations principales</div>
+        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+          <div style={{ width: 'min(100%,360px)' }}>
+            <div style={{ aspectRatio: '16 / 9', borderRadius: 10, border: '1.5px solid #E7DED0', background: '#FAF3EB', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#6B6459' }}>
+              {event.coverUrl ? <img src={event.coverUrl} alt="Couverture" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'Aucune couverture'}
+            </div>
+            <div style={{ ...mutedText, fontSize: 11.5, marginTop: 4 }}>Image de couverture (page de détail)</div>
+          </div>
+          <div style={{ width: 120 }}>
+            <div style={{ aspectRatio: '1 / 1', borderRadius: 12, border: '1.5px solid #E7DED0', background: '#FAF3EB', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {event.logoUrl && <img src={event.logoUrl} alt="Visuel" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 10 }} />}
+            </div>
+            <div style={{ ...mutedText, fontSize: 11.5, marginTop: 4 }}>Visuel (listes)</div>
+          </div>
+          <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 16px', fontSize: 13.5, alignContent: 'start' }}>
+            <dt style={mutedText}>Date</dt>
+            <dd style={{ margin: 0 }}>{new Date(event.date).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}</dd>
+            <dt style={mutedText}>Ville</dt>
+            <dd style={{ margin: 0 }}>{event.city}</dd>
+            <dt style={mutedText}>Lieu</dt>
+            <dd style={{ margin: 0 }}>{event.location}</dd>
+            {event.desc && (
+              <>
+                <dt style={mutedText}>Description</dt>
+                <dd style={{ margin: 0 }}>{event.desc}</dd>
+              </>
+            )}
+          </dl>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TicketingTab(props: Readonly<{ event: OrganizerEventItem; editable: boolean; reload: () => void; run: (a: () => Promise<unknown>) => Promise<void> }>) {
+  const { event, editable, reload, run } = props;
+  const [modal, setModal] = useState<EventTicket | 'new' | null>(null);
+  const [toggling, setToggling] = useState<EventTicket | null>(null);
+  const activeCount = event.tickets.filter((t) => t.active).length;
+
+  return (
+    <div className="bo-card" style={{ ...cardStyle, padding: 22 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+        <div>
+          <div style={cardTitle}>Billetterie</div>
+          <div style={{ ...mutedText, marginTop: -8 }}>
+            {event.tickets.length} catégorie(s) de billets{event.tickets.length > activeCount ? ` · ${event.tickets.length - activeCount} désactivée(s)` : ''}
+          </div>
+        </div>
+        {editable && (
+          <button type="button" style={primaryButtonStyle} onClick={() => setModal('new')}>
+            + Ajouter une catégorie
+          </button>
+        )}
+      </div>
+      {!editable && <div style={{ ...mutedText, marginBottom: 14 }}>Cet événement est en cours de validation : la billetterie n&apos;est pas modifiable.</div>}
+
+      <div style={{ display: 'grid', gap: 10 }}>
+        {event.tickets.length === 0 && <div style={mutedText}>Aucune catégorie de billet.</div>}
+        {event.tickets.map((tt) => (
+          <div key={tt.id} style={{ padding: '12px 16px', background: '#FAF3EB', borderRadius: 10, opacity: tt.active ? 1 : 0.75, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              {editable ? (
+                <ImagePicker
+                  imageUrl={tt.imageUrl ?? null}
+                  size={40}
+                  onUpload={(file) => uploadOrganizerTicketTypeImage(event.id, tt.id, file).then(() => reload())}
+                  onSelectPreset={(key) => setOrganizerTicketTypeImagePreset(event.id, tt.id, key).then(() => reload())}
+                  onClear={() => clearOrganizerTicketTypeImage(event.id, tt.id).then(() => reload())}
+                />
+              ) : (
+                tt.imageUrl && <img src={tt.imageUrl} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover' }} />
+              )}
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>
+                  {tt.name}
+                  {!tt.active && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#A6341D' }}>Désactivée</span>}
+                </div>
+                <div style={{ fontSize: 12.5, color: '#6B6459' }}>
+                  {fmtPrice(tt.price)} · {tt.capacity == null ? 'places illimitées' : `${tt.capacity} places`} · {tt.sold} vendu(s)
+                </div>
+                {tt.description && <div style={{ fontSize: 12, color: '#6B6459' }}>{tt.description}</div>}
+                {!tt.active && (
+                  <div style={{ fontSize: 12, color: '#6B6459', marginTop: 4 }}>
+                    Cette catégorie n&apos;est plus disponible à la vente. Les {tt.sold} billet(s) déjà acheté(s) restent valides.
+                  </div>
+                )}
+              </div>
+            </div>
+            {editable && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" style={outlineButtonStyle} onClick={() => setModal(tt)}>
+                  Modifier
+                </button>
+                <button type="button" style={{ ...outlineButtonStyle, borderColor: tt.active ? '#A6341D' : '#164A23', color: tt.active ? '#A6341D' : '#164A23' }} onClick={() => (tt.active ? setToggling(tt) : run(async () => { await updateOrganizerTicketType(event.id, tt.id, { active: true }); reload(); }))}>
+                  {tt.active ? 'Désactiver' : 'Réactiver'}
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {modal && (
+        <TicketCategoryModal
+          title={modal === 'new' ? 'Créer une catégorie de billet' : 'Modifier la catégorie'}
+          submitLabel={modal === 'new' ? 'Créer' : 'Enregistrer'}
+          initial={modal === 'new' ? undefined : { name: modal.name, price: String(modal.price), capacity: modal.capacity == null ? '' : String(modal.capacity), description: modal.description ?? '' }}
+          notice={
+            modal !== 'new' && modal.sold > 0
+              ? `${modal.sold} billet(s) déjà vendu(s) : le nouveau prix ne s'applique qu'aux ventes futures, et la quantité ne peut pas descendre sous ${modal.sold}.`
+              : undefined
+          }
+          onClose={() => setModal(null)}
+          onSubmit={async (payload) => {
+            if (modal === 'new') await addOrganizerTicketType(event.id, payload);
+            else {
+              await updateOrganizerTicketType(event.id, modal.id, {
+                name: payload.name,
+                price: payload.price,
+                capacity: payload.capacity,
+                description: payload.description ?? '',
+              });
+            }
+            reload();
+          }}
+        />
+      )}
+
+      {toggling && (
+        <Modal title="Désactiver la catégorie" onClose={() => setToggling(null)} size="sm">
+          <p style={{ fontSize: 13.5, lineHeight: 1.55, margin: '0 0 16px' }}>
+            <strong>{toggling.name}</strong> ne sera plus disponible à la vente. Les {toggling.sold} billet(s) déjà acheté(s) restent valides.
+            Vous pourrez la réactiver à tout moment.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <button type="button" style={outlineButtonStyle} onClick={() => setToggling(null)}>
+              Annuler
+            </button>
+            <button
+              type="button"
+              style={{ ...primaryButtonStyle, background: '#A6341D' }}
+              onClick={() =>
+                run(async () => {
+                  await updateOrganizerTicketType(event.id, toggling.id, { active: false });
+                  setToggling(null);
+                  reload();
+                })
+              }
+            >
+              Désactiver
+            </button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function SalesTab({ event }: Readonly<{ event: OrganizerEventItem }>) {
+  const cell: React.CSSProperties = { padding: '10px 12px', fontSize: 13, textAlign: 'right' };
+  const head: React.CSSProperties = { ...cell, fontSize: 11.5, color: '#6B6459', fontWeight: 700 };
+  return (
+    <div className="bo-card" style={{ ...cardStyle, padding: 22, overflowX: 'auto' }}>
+      <div style={cardTitle}>Ventes de billets</div>
+      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid #E7DED0' }}>
+            <th style={{ ...head, textAlign: 'left' }}>Catégorie</th>
+            <th style={head}>Tarif actuel</th>
+            <th style={head}>Vendus</th>
+            <th style={head}>Remplissage</th>
+            <th style={head}>Ventes brutes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {event.tickets.map((t) => (
+            <tr key={t.id} style={{ borderBottom: '1px solid #F1EADF' }}>
+              <td style={{ ...cell, textAlign: 'left', fontWeight: 600 }}>
+                {t.name}
+                {!t.active && <span style={{ marginLeft: 6, fontSize: 11, color: '#A6341D' }}>désactivée</span>}
+              </td>
+              <td style={cell}>{fmtPrice(t.price)}</td>
+              <td style={cell}>{t.sold}</td>
+              <td style={cell}>{t.capacity ? `${Math.round((t.sold / t.capacity) * 100)} %` : '—'}</td>
+              <td style={cell}>{formatFcfa(t.revenue)}</td>
+            </tr>
+          ))}
+          <tr>
+            <td style={{ ...cell, textAlign: 'left', fontWeight: 800 }}>Total</td>
+            <td style={cell} />
+            <td style={{ ...cell, fontWeight: 800 }}>{totalSold(event.tickets)}</td>
+            <td style={cell} />
+            <td style={{ ...cell, fontWeight: 800 }}>{formatFcfa(totalRevenue(event.tickets))}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style={{ ...mutedText, fontSize: 12, marginTop: 10 }}>Les ventes brutes sont calculées au prix payé par chaque acheteur, même si le tarif a changé depuis.</div>
+    </div>
+  );
+}
+
+function ControlTab(props: Readonly<{ event: OrganizerEventItem; run: (a: () => Promise<unknown>) => Promise<void>; onOpenAssignments: () => void }>) {
+  const { event, run, onOpenAssignments } = props;
+  return (
+    <div className="bo-card" style={{ ...cardStyle, padding: 22 }}>
+      <div style={cardTitle}>Contrôle des billets</div>
+      <div style={{ ...mutedText, marginBottom: 14 }}>
+        Téléchargez la liste des participants (CSV) et gérez les agents de contrôle autorisés à scanner les billets de cet événement.
+      </div>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <button type="button" style={primaryButtonStyle} onClick={() => run(() => exportManifest(event.id))}>
+          Exporter la liste des participants
+        </button>
+        <button type="button" style={outlineButtonStyle} onClick={onOpenAssignments}>
+          Affecter des agents de contrôle
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FinancesTab({ event, onOpenFinance }: Readonly<{ event: OrganizerEventItem; onOpenFinance: () => void }>) {
+  return (
+    <div className="bo-card" style={{ ...cardStyle, padding: 22 }}>
+      <div style={cardTitle}>Finances</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, marginBottom: 14 }}>
+        <KpiCard label="Ventes brutes" value={formatFcfa(totalRevenue(event.tickets))} sub="cet événement" color={GREEN} />
+        <KpiCard label="Billets vendus" value={totalSold(event.tickets)} sub="" color={GOLD} />
+      </div>
+      <div style={{ ...mutedText, marginBottom: 14 }}>
+        Les commissions, le solde disponible et les demandes de reversement se consultent sur la page Finances (tous événements confondus).
+      </div>
+      <button type="button" style={outlineButtonStyle} onClick={onOpenFinance}>
+        Ouvrir les finances
+      </button>
     </div>
   );
 }

@@ -60,7 +60,7 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
     { label: 'Hôtels référencés', value: stats.totalHotels, sub: 'actifs', color: GREEN },
     { label: 'Événements', value: stats.totalEvents, sub: `dont ${stats.upcomingEvents} à venir`, color: GREEN },
     { label: 'Clients', value: stats.totalClients, sub: 'inscrits', color: GREEN },
-    { label: 'Agents contrôleurs', value: stats.totalStaff, sub: 'actifs', color: GOLD },
+    { label: 'Agents de contrôle', value: stats.totalStaff, sub: 'actifs', color: GOLD },
     { label: 'Réservations', value: stats.totalBookings, sub: `${stats.confirmedBookings} confirmées`, color: GOLD },
     {
       label: 'Chiffre d’affaires',

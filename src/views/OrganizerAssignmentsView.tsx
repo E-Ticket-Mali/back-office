@@ -116,7 +116,7 @@ export function OrganizerAssignmentsView() {
   // Les brouillons/rejetés ne seront jamais scannés : on propose ce qui est en validation, validé
   // (on peut préparer le contrôle avant de publier) ou publié.
   const assignable = events
-    .filter((e) => e.status === 'PUBLISHED' || e.status === 'APPROVED' || e.status === 'PENDING_APPROVAL')
+    .filter((e) => ['PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'UNPUBLISHED'].includes(e.status))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   if (data.agents.length === 0) {
