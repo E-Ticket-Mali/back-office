@@ -114,8 +114,8 @@ export function CellView(props: Readonly<{ cell: CellType }>) {
     return (
       <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
         {cell.extra && <ExtraActionButton action={cell.extra} />}
-        <button type="button" onClick={cell.onDetail} title="Détails" style={actionBtnStyle('#6B6459')}>
-          Détails
+        <button type="button" onClick={cell.onDetail} title={cell.detailLabel ?? 'Détails'} style={actionBtnStyle('#6B6459')}>
+          {cell.detailLabel ?? 'Détails'}
         </button>
       </div>
     );

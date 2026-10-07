@@ -15,6 +15,8 @@ import {
   updateTicketType,
   uploadEventImage,
   uploadTicketTypeImage,
+  uploadEventCover,
+  clearEventCover,
 } from '../api/events';
 import { useCollection } from '../hooks/useCollection';
 import { useActionError } from '../hooks/useActionError';
@@ -22,6 +24,7 @@ import { FreePill, TicketTypePill } from '../components/Pill';
 import { LoadingState } from '../components/LoadingState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ImagePicker } from '../components/ImagePicker';
+import { CoverField } from '../components/CoverField';
 import type { EventItem, EventTicket, OrganizerEventStatus, TicketType } from '../types';
 import { Icon } from '../components/Icon';
 import { CategoryIcon } from '../components/Icon';
@@ -100,9 +103,10 @@ const STATUS_COLOR: Record<string, [string, string]> = {
 
 const EVENT_STATUS_LABEL: Record<OrganizerEventStatus, string> = {
   DRAFT: 'Brouillon',
-  PENDING_APPROVAL: 'En attente de validation',
-  APPROVED: 'Validé (non publié)',
+  PENDING_APPROVAL: 'En cours de validation',
+  APPROVED: 'Validé, à publier',
   PUBLISHED: 'Publié',
+  UNPUBLISHED: 'Dépublié',
   REJECTED: 'Rejeté',
 };
 
@@ -111,6 +115,7 @@ const EVENT_STATUS_COLOR: Record<OrganizerEventStatus, [string, string]> = {
   PENDING_APPROVAL: ['#9A7800', 'rgba(252,209,22,0.2)'],
   APPROVED: ['#1D5C8A', 'rgba(29,92,138,0.12)'],
   PUBLISHED: [GREEN, 'rgba(22,74,35,0.1)'],
+  UNPUBLISHED: ['#6B6459', 'rgba(107,100,89,0.14)'],
   REJECTED: ['#CE1126', 'rgba(206,17,38,0.12)'],
 };
 
@@ -135,6 +140,11 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
   const [editingType, setEditingType] = useState<Record<string, string>>({});
   const [rejecting, setRejecting] = useState(false);
   const { run, banner } = useActionError();
+  const runCover = (action: () => Promise<unknown>) =>
+    run(async () => {
+      await action();
+      reloadEvent();
+    });
 
   if (eventLoading || statsLoading || ticketsLoading || scanLoading || eventRows.length === 0) {
     return <LoadingState label="Chargement de l'événement…" />;
@@ -310,19 +320,39 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         <div className="bo-card" style={cardStyle}>
-          <div style={cardTitleStyle}>Image de l'événement</div>
-          <ImagePicker
-            clearLabel="Revenir au logo de la catégorie"
-            imageUrl={event.imageUrl}
-            size={140}
-            onUpload={(file) => uploadEventImage(event.id, file).then(() => reloadEvent())}
-            onSelectPreset={(key) => setEventImagePreset(event.id, key).then(() => reloadEvent())}
-            onClear={() => clearEventImage(event.id).then(() => reloadEvent())}
-          />
+          <div style={cardTitleStyle}>Identité visuelle</div>
+          <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#6B6459', marginBottom: 4 }}>Visuel de l'événement</div>
+              <div style={{ fontSize: 11.5, color: '#6B6459', marginBottom: 8 }}>Listes et cartes d'événements (format carré).</div>
+              <ImagePicker
+                clearLabel="Revenir au visuel de la catégorie"
+                imageUrl={event.logoUrl ?? event.imageUrl}
+                size={140}
+                onUpload={(file) => uploadEventImage(event.id, file).then(() => reloadEvent())}
+                onSelectPreset={(key) => setEventImagePreset(event.id, key).then(() => reloadEvent())}
+                onClear={() => clearEventImage(event.id).then(() => reloadEvent())}
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: 280 }} data-testid="admin-cover">
+              <CoverField
+                file={null}
+                currentUrl={event.coverUrl}
+                onChange={(file) => {
+                  if (file) void runCover(() => uploadEventCover(event.id, file));
+                }}
+              />
+              {event.coverUrl && (
+                <button type="button" onClick={() => void runCover(() => clearEventCover(event.id))} style={{ ...smallBtn('#A6341D'), marginTop: 8 }}>
+                  Retirer la couverture
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="bo-card" style={cardStyle}>
-          <div style={cardTitleStyle}>Types de billets</div>
+          <div style={cardTitleStyle}>Catégories de billets</div>
 
           {pricingLocked && (
             <div data-testid="pricing-locked" style={{ fontSize: 12.5, color: '#6B6459', background: '#FAF3EB', borderRadius: 8, padding: '9px 12px', marginBottom: 14 }}>
@@ -361,7 +391,7 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {event.tickets.length === 0 && <div style={{ fontSize: 13, color: '#6B6459' }}>Aucun type de billet.</div>}
+            {event.tickets.length === 0 && <div style={{ fontSize: 13, color: '#6B6459' }}>Aucune catégorie de billet.</div>}
             {event.tickets.map((tt) => {
               const draft = editingType[tt.id];
               return (
@@ -380,7 +410,7 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
                     )}
                     <TicketTypePill type={tt.type} />
                     {tt.price === 0 && <FreePill />}
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1F2E35' }}>{TICKET_LABELS[tt.type]}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1F2E35' }}>{tt.name}{!tt.active && ' (désactivée)'}</span>
                   </div>
                   {draft !== undefined ? (
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

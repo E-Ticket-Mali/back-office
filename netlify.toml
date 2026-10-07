@@ -12,3 +12,9 @@
   to = "http://bukdj0lqd5p38mw4ne3x6dfg.178.105.169.55.sslip.io/api/:splat"
   status = 200
   force = true
+
+# Application monopage : toute URL (ex. /organizer/events/new) sert index.html, le routeur côté client prend le relais.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

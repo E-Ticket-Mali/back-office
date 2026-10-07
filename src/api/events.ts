@@ -23,10 +23,22 @@ export interface EventInput {
 }
 
 export interface TicketTypeInput {
-  type: TicketType;
+  /** Palier (pastilles des applications mobiles) ; STANDARD par défaut côté serveur. */
+  type?: TicketType;
+  /** Nom commercial de la catégorie ; le libellé du palier par défaut. */
+  name?: string;
   price: number;
   /** Omitted = unlimited. */
   capacity?: number;
+  description?: string;
+}
+
+export interface TicketTypePatch {
+  price?: number;
+  capacity?: number;
+  name?: string;
+  description?: string;
+  active?: boolean;
 }
 
 export const getEvents = (status?: OrganizerEventStatus) =>
@@ -40,7 +52,7 @@ export const rejectEvent = (id: string, reason: string) => http.post<EventItem>(
 
 export const addTicketType = (eventId: string, data: TicketTypeInput) =>
   http.post<EventTicket>(`/admin/events/${eventId}/ticket-types`, data);
-export const updateTicketType = (eventId: string, ticketTypeId: string, patch: { price?: number; capacity?: number }) =>
+export const updateTicketType = (eventId: string, ticketTypeId: string, patch: TicketTypePatch) =>
   http.patch<EventTicket>(`/admin/events/${eventId}/ticket-types/${ticketTypeId}`, patch);
 export const deleteTicketType = (eventId: string, ticketTypeId: string) =>
   http.delete(`/admin/events/${eventId}/ticket-types/${ticketTypeId}`);
@@ -68,3 +80,10 @@ export const getEventTickets = (eventId: string) => http.get<TicketManifestEntry
 export const getEventScanRecords = (eventId: string) =>
   http.get<AdminScanRecord[]>(`/admin/events/${eventId}/scan-records`);
 export const getEventStats = (eventId: string) => http.get<EventStats>(`/admin/events/${eventId}/stats`);
+
+export const uploadEventCover = (eventId: string, file: File) => {
+  const form = new FormData();
+  form.append('file', file);
+  return http.postForm<EventItem>(`/admin/events/${eventId}/cover`, form);
+};
+export const clearEventCover = (eventId: string) => http.delete(`/admin/events/${eventId}/cover`);

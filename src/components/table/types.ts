@@ -50,6 +50,8 @@ export interface DetailOnlyActionsCell {
   kind: 'detailOnlyActions';
   onDetail: () => void;
   extra?: RowExtraAction;
+  /** Libellé du bouton (« Détails » par défaut ; ex. « Gérer », « Consulter »). */
+  detailLabel?: string;
 }
 
 export interface RatingCell {
@@ -106,8 +108,8 @@ export function editDetailActions(onEdit: () => void, onDetail: () => void, extr
   return { kind: 'editDetailActions', onEdit, onDetail, extra };
 }
 
-export function detailOnlyActions(onDetail: () => void, extra?: RowExtraAction): DetailOnlyActionsCell {
-  return { kind: 'detailOnlyActions', onDetail, extra };
+export function detailOnlyActions(onDetail: () => void, extra?: RowExtraAction, detailLabel?: string): DetailOnlyActionsCell {
+  return { kind: 'detailOnlyActions', onDetail, extra, detailLabel };
 }
 
 export function rating(value: number): RatingCell {

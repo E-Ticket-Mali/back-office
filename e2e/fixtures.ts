@@ -21,6 +21,19 @@ export function tab(page: Page, label: string) {
   return page.getByRole('tab', { name: new RegExp(`^${label}(\\s*\\d+)?$`) });
 }
 
+/** Crée une catégorie de billet via la fenêtre rapide (formulaire d'événement ou onglet Billetterie). */
+export async function addCategory(page: Page, c: { name: string; price: string; capacity?: string }) {
+  const dialogs = page.getByRole('dialog');
+  const before = await dialogs.count();
+  await page.getByRole('button', { name: /catégorie de billet|Ajouter une catégorie/ }).first().click();
+  const dialog = dialogs.nth(before);
+  await dialog.getByLabel('Nom').fill(c.name);
+  await dialog.getByLabel('Prix (FCFA)').fill(c.price);
+  if (c.capacity) await dialog.getByLabel('Quantité disponible').fill(c.capacity);
+  await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
+  await expect(dialogs).toHaveCount(before);
+}
+
 type Fixtures = {
   adminToken: string;
   organizer: TestOrganizer;

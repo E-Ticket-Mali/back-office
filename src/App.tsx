@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { Topbar } from './components/Topbar';
 import { LoginView } from './views/LoginView';
@@ -19,6 +20,7 @@ import { SecurityView } from './views/SecurityView';
 import { OrganizerDashboardView } from './views/OrganizerDashboardView';
 import { OrganizerEventsView } from './views/OrganizerEventsView';
 import { OrganizerEventDetailView } from './views/OrganizerEventDetailView';
+import { OrganizerEventFormPage } from './views/OrganizerEventFormPage';
 import { OrganizerAgentsView } from './views/OrganizerAgentsView';
 import { OrganizerAgentDetailView } from './views/OrganizerAgentDetailView';
 import { OrganizerSettingsView } from './views/OrganizerSettingsView';
@@ -41,7 +43,6 @@ import type {
   AdminOrganizer,
   EventItem,
   Hotel,
-  OrganizerEventItem,
   OrganizerStaffAgent,
   StaffAgent,
   ViewId,
@@ -63,23 +64,22 @@ const TITLES: Record<ViewId, string> = {
   bookingDetail: '',
   clients: 'Clients',
   clientDetail: '',
-  agents: 'Agents contrôleurs',
+  agents: 'Agents de contrôle',
   agentDetail: '',
   organizersAdmin: 'Organisateurs',
   organizerAdminDetail: '',
   security: 'Paramètres',
   organizerDashboard: 'Tableau de bord',
   organizerEvents: 'Événements',
-  organizerEventDetail: '',
-  organizerAgents: 'Agents contrôleurs',
+  organizerAgents: 'Agents de contrôle',
   organizerAgentDetail: '',
   organizerTicketing: 'Billetterie',
   organizerFinance: 'Finances',
   organizerNotifications: 'Notifications',
-  organizerSettings: 'Profil',
-  organizerAssignments: 'Agents contrôleurs',
-  adminTickets: 'Billets & contrôle',
-  adminScans: 'Billets & contrôle',
+  organizerSettings: 'Paramètres',
+  organizerAssignments: 'Agents de contrôle',
+  adminTickets: 'Contrôle des billets',
+  adminScans: 'Contrôle des billets',
   adminCommissions: 'Commissions',
   adminPayouts: 'Reversements',
   adminNotifications: 'Notifications',
@@ -95,16 +95,16 @@ const PAGE_TABS: { views: ViewId[]; tabs: PageTab[] }[] = [
   {
     views: ['adminTickets', 'adminScans'],
     tabs: [
-      { label: 'Manifestes', view: 'adminTickets' },
+      { label: 'Listes de participants', view: 'adminTickets' },
       { label: 'Scans', view: 'adminScans' },
     ],
   },
   {
     views: ['organizerTicketing'],
     tabs: [
-      { label: 'Billets & tarifs', view: 'organizerTicketing' },
-      { label: 'Ventes', view: 'organizerTicketing', section: 'sales' },
-      { label: 'Manifestes & exports', view: 'organizerTicketing', section: 'exports' },
+      { label: 'Catégories de billets', view: 'organizerTicketing' },
+      { label: 'Ventes de billets', view: 'organizerTicketing', section: 'sales' },
+      { label: 'Listes de participants', view: 'organizerTicketing', section: 'exports' },
     ],
   },
   {
@@ -133,7 +133,6 @@ function buildViewTitle(
   selectedClient: AdminClient | null,
   selectedAgent: StaffAgent | null,
   selectedOrganizer: AdminOrganizer | null,
-  selectedOrganizerEvent: OrganizerEventItem | null,
   selectedOrganizerAgent: OrganizerStaffAgent | null
 ): string {
   switch (view) {
@@ -149,13 +148,30 @@ function buildViewTitle(
       return `Agent — ${selectedAgent?.agentName ?? ''}`;
     case 'organizerAdminDetail':
       return `Organisateur — ${selectedOrganizer?.name ?? ''}`;
-    case 'organizerEventDetail':
-      return `Événement — ${selectedOrganizerEvent?.name ?? ''}`;
     case 'organizerAgentDetail':
       return `Agent — ${selectedOrganizerAgent?.agentName ?? ''}`;
     default:
       return TITLES[view];
   }
+}
+
+type EventRoute = { kind: 'list' } | { kind: 'new' } | { kind: 'detail'; id: string } | { kind: 'edit'; id: string };
+
+const EVENT_ROUTE_TITLES: Record<EventRoute['kind'], string> = {
+  list: 'Événements',
+  new: 'Nouvel événement',
+  detail: 'Événement',
+  edit: "Modifier l'événement",
+};
+
+/** /organizer/events · /organizer/events/new · /organizer/events/:id · /organizer/events/:id/edit */
+function parseEventRoute(pathname: string): EventRoute | null {
+  const match = /^\/organizer\/events(?:\/([^/]+)(?:\/(edit))?)?\/?$/.exec(pathname);
+  if (!match) return null;
+  const [, id, edit] = match;
+  if (!id) return { kind: 'list' };
+  if (id === 'new') return edit ? null : { kind: 'new' };
+  return edit ? { kind: 'edit', id } : { kind: 'detail', id };
 }
 
 function App() {
@@ -168,9 +184,10 @@ function App() {
   const [selectedClient, setSelectedClient] = useState<AdminClient | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<StaffAgent | null>(null);
   const [selectedOrganizer, setSelectedOrganizer] = useState<AdminOrganizer | null>(null);
-  const [selectedOrganizerEvent, setSelectedOrganizerEvent] = useState<OrganizerEventItem | null>(null);
   const [selectedOrganizerAgent, setSelectedOrganizerAgent] = useState<OrganizerStaffAgent | null>(null);
   const filters = useTableFilters();
+  const location = useLocation();
+  const routerNavigate = useNavigate();
 
   if (!session) {
     return <LoginView />;
@@ -182,12 +199,18 @@ function App() {
   // for that one frame. `view` itself is left untouched; only what gets rendered/compared
   // against is corrected, and the next explicit `navigate()` call still writes to real state.
   const roleViews = session.role === 'ADMIN' ? ADMIN_VIEWS : ORGANIZER_VIEWS;
-  const effectiveView = roleViews.has(view) ? view : defaultViewForRole(session.role);
+  // Les pages « événement » de l'organisateur ont de vraies URL (/organizer/events, /new, /:id, /:id/edit) :
+  // l'adresse fait foi, le reste de l'application garde sa navigation par état.
+  const eventRoute = session.role === 'ORGANIZER' ? parseEventRoute(location.pathname) : null;
+  let effectiveView = roleViews.has(view) ? view : defaultViewForRole(session.role);
+  if (eventRoute) effectiveView = 'organizerEvents';
+  else if (effectiveView === 'organizerEvents') effectiveView = defaultViewForRole(session.role);
 
   const navigate = (nextView: ViewId, nextSection: ViewSection = null) => {
     setView(nextView);
     setSection(nextSection);
     filters.reset();
+    routerNavigate(nextView === 'organizerEvents' ? '/organizer/events' : '/');
   };
 
   const openHotelDetail = (hotel: Hotel) => {
@@ -214,16 +237,13 @@ function App() {
     setSelectedOrganizer(organizer);
     navigate('organizerAdminDetail');
   };
-  const openOrganizerEventDetail = (event: OrganizerEventItem) => {
-    setSelectedOrganizerEvent(event);
-    navigate('organizerEventDetail');
-  };
   const openOrganizerAgentDetail = (agent: OrganizerStaffAgent) => {
     setSelectedOrganizerAgent(agent);
     navigate('organizerAgentDetail');
   };
 
   const effectiveSection = effectiveView === view ? section : null;
+  const titleOverride = eventRoute ? EVENT_ROUTE_TITLES[eventRoute.kind] : null;
   const pageTabs = PAGE_TABS.find((family) => family.views.includes(effectiveView));
   const viewTitle = buildViewTitle(
     effectiveView,
@@ -233,7 +253,6 @@ function App() {
     selectedClient,
     selectedAgent,
     selectedOrganizer,
-    selectedOrganizerEvent,
     selectedOrganizerAgent
   );
   const hasSearch = TABLE_VIEWS.has(effectiveView);
@@ -244,8 +263,8 @@ function App() {
 
       <div className="bo-main">
         <Topbar
-          title={viewTitle}
-          hasSearch={hasSearch}
+          title={titleOverride ?? viewTitle}
+          hasSearch={hasSearch && (!eventRoute || eventRoute.kind === 'list')}
           search={filters.search}
           onSearch={filters.onSearch}
           notifications={[]}
@@ -318,16 +337,13 @@ function App() {
             <>
               {effectiveView === 'organizerDashboard' && <OrganizerDashboardView onNavigate={navigate} />}
 
-              {effectiveView === 'organizerEvents' && (
-                <OrganizerEventsView
-                  key={effectiveSection ?? 'ALL'}
-                  filters={filters}
-                  section={effectiveSection}
-                  onOpenDetail={openOrganizerEventDetail}
-                />
+              {effectiveView === 'organizerEvents' && (!eventRoute || eventRoute.kind === 'list') && (
+                <OrganizerEventsView key={effectiveSection ?? 'ALL'} filters={filters} section={effectiveSection} />
               )}
-              {effectiveView === 'organizerEventDetail' && selectedOrganizerEvent && (
-                <OrganizerEventDetailView event={selectedOrganizerEvent} onBack={() => navigate('organizerEvents')} />
+              {eventRoute?.kind === 'new' && <OrganizerEventFormPage />}
+              {eventRoute?.kind === 'edit' && <OrganizerEventFormPage key={eventRoute.id} eventId={eventRoute.id} />}
+              {eventRoute?.kind === 'detail' && (
+                <OrganizerEventDetailView key={eventRoute.id} eventId={eventRoute.id} onNavigateView={navigate} />
               )}
 
               {effectiveView === 'organizerAgents' && (

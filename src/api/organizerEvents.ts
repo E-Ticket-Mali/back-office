@@ -15,10 +15,22 @@ export interface OrganizerEventInput {
 }
 
 export interface OrganizerTicketTypeInput {
-  type: TicketType;
+  /** Palier (pastilles des applications mobiles) ; STANDARD par défaut côté serveur. */
+  type?: TicketType;
+  /** Nom commercial de la catégorie ; le libellé du palier par défaut. */
+  name?: string;
   price: number;
   /** Omitted = unlimited. */
   capacity?: number;
+  description?: string;
+}
+
+export interface OrganizerTicketTypePatch {
+  price?: number;
+  capacity?: number;
+  name?: string;
+  description?: string;
+  active?: boolean;
 }
 
 export const getOrganizerEvents = () => http.get<OrganizerEventItem[]>('/organizer/events');
@@ -35,7 +47,7 @@ export const unpublishOrganizerEvent = (id: string) => http.post<OrganizerEventI
 
 export const addOrganizerTicketType = (eventId: string, data: OrganizerTicketTypeInput) =>
   http.post<EventTicket>(`/organizer/events/${eventId}/ticket-types`, data);
-export const updateOrganizerTicketType = (eventId: string, ticketTypeId: string, patch: { price?: number; capacity?: number }) =>
+export const updateOrganizerTicketType = (eventId: string, ticketTypeId: string, patch: OrganizerTicketTypePatch) =>
   http.patch<EventTicket>(`/organizer/events/${eventId}/ticket-types/${ticketTypeId}`, patch);
 export const deleteOrganizerTicketType = (eventId: string, ticketTypeId: string) =>
   http.delete(`/organizer/events/${eventId}/ticket-types/${ticketTypeId}`);
@@ -48,6 +60,13 @@ export const uploadOrganizerEventImage = (eventId: string, file: File) => {
 export const setOrganizerEventImagePreset = (eventId: string, presetKey: string) =>
   http.put<OrganizerEventItem>(`/organizer/events/${eventId}/image/preset`, { presetKey });
 export const clearOrganizerEventImage = (eventId: string) => http.delete(`/organizer/events/${eventId}/image`);
+
+export const uploadOrganizerEventCover = (eventId: string, file: File) => {
+  const form = new FormData();
+  form.append('file', file);
+  return http.postForm<OrganizerEventItem>(`/organizer/events/${eventId}/cover`, form);
+};
+export const clearOrganizerEventCover = (eventId: string) => http.delete(`/organizer/events/${eventId}/cover`);
 
 export const uploadOrganizerTicketTypeImage = (eventId: string, ticketTypeId: string, file: File) => {
   const form = new FormData();
@@ -75,13 +94,13 @@ export async function exportManifest(eventId: string): Promise<void> {
     throw new UnauthorizedError();
   }
   if (!res.ok) {
-    throw new Error(`Erreur ${res.status} lors de l'export du manifeste.`);
+    throw new Error(`Erreur ${res.status} lors de l'export de la liste des participants.`);
   }
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `manifeste-${eventId}.csv`;
+  link.download = `participants-${eventId}.csv`;
   document.body.appendChild(link);
   link.click();
   link.remove();

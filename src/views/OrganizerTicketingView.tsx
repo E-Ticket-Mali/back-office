@@ -8,7 +8,7 @@ import { KpiCard } from '../components/KpiCard';
 import { cardStyle, formatFcfa, mutedText, outlineButtonStyle, primaryButtonStyle } from '../components/uiStyles';
 import { GOLD, GREEN } from '../theme';
 import type { TableFilters } from '../hooks/useTableFilters';
-import type { EventTicket, OrganizerEventItem } from '../types';
+import type { OrganizerEventItem } from '../types';
 
 interface OrganizerTicketingViewProps {
   filters: TableFilters;
@@ -18,18 +18,12 @@ interface OrganizerTicketingViewProps {
 
 const STATUS_LABEL: Record<OrganizerEventItem['status'], string> = {
   DRAFT: 'Brouillon',
-  PENDING_APPROVAL: 'En attente',
-  APPROVED: 'Validé (non publié)',
+  PENDING_APPROVAL: 'En cours de validation',
+  APPROVED: 'Validé, à publier',
   PUBLISHED: 'Publié',
+  UNPUBLISHED: 'Dépublié',
   REJECTED: 'Rejeté',
 };
-
-/** Vendus = capacité − restants ; inconnu (null) pour un tarif à capacité illimitée,
- * le backend n'exposant pas de compteur de ventes par type de billet. */
-function soldCount(ticket: EventTicket): number | null {
-  if (ticket.capacity == null) return null;
-  return Math.max(0, ticket.capacity - (ticket.remaining ?? 0));
-}
 
 const rowStyle: React.CSSProperties = {
   display: 'grid',
@@ -65,12 +59,15 @@ function PricingSection({ events }: Readonly<{ events: OrganizerEventItem[] }>) 
         <div key={event.id} className="bo-card" style={cardStyle}>
           <EventHeader event={event} />
           <div style={{ display: 'grid', gap: 8, marginTop: 14 }}>
-            {event.tickets.length === 0 && <div style={{ ...mutedText, fontSize: 12.5 }}>Aucun type de billet configuré.</div>}
+            {event.tickets.length === 0 && <div style={{ ...mutedText, fontSize: 12.5 }}>Aucune catégorie de billet configurée.</div>}
             {event.tickets.map((ticket) => (
               <div key={ticket.id} style={{ ...rowStyle, gridTemplateColumns: '1fr 1fr 1fr' }}>
-                <strong>{ticket.type}</strong>
+                <strong>
+                  {ticket.name}
+                  {!ticket.active && <span style={{ ...mutedText, fontWeight: 400 }}> (désactivée)</span>}
+                </strong>
                 <span>{formatFcfa(ticket.price)}</span>
-                <span>{ticket.capacity == null ? 'Capacité illimitée' : `${ticket.remaining ?? 0}/${ticket.capacity} restant(s)`}</span>
+                <span>{ticket.capacity == null ? 'Places illimitées' : `${ticket.remaining ?? 0}/${ticket.capacity} disponible(s)`}</span>
               </div>
             ))}
           </div>
@@ -81,41 +78,33 @@ function PricingSection({ events }: Readonly<{ events: OrganizerEventItem[] }>) 
 }
 
 function SalesSection({ events, ticketsSold }: Readonly<{ events: OrganizerEventItem[]; ticketsSold: number | null }>) {
-  let knownRevenue = 0;
-  const salesEvents = events.filter((e) => e.status === 'PUBLISHED');
-  for (const event of salesEvents) {
-    for (const ticket of event.tickets) knownRevenue += (soldCount(ticket) ?? 0) * ticket.price;
-  }
-  const hasUnlimited = salesEvents.some((e) => e.tickets.some((t) => t.capacity == null));
+  // Ventes réelles par catégorie (compteurs serveur, au prix payé par chaque acheteur) — y compris
+  // pour un événement dépublié, dont les billets vendus restent valides.
+  const salesEvents = events.filter((e) => e.status === 'PUBLISHED' || e.status === 'UNPUBLISHED');
+  const grossRevenue = salesEvents.reduce((sum, e) => sum + e.tickets.reduce((n, t) => n + t.revenue, 0), 0);
 
   return (
     <>
       <div className="bo-kpi-grid" style={{ display: 'grid', gap: 16, marginBottom: 18 }}>
         <KpiCard label="Billets vendus" value={ticketsSold ?? '—'} sub="tous événements" color={GREEN} />
-        <KpiCard label="Événements en vente" value={salesEvents.length} sub="publiés" color={GOLD} />
-        <KpiCard label="Ventes brutes (tarifs limités)" value={formatFcfa(knownRevenue)} sub="avant commission" color={GREEN} />
+        <KpiCard label="Événements en vente" value={salesEvents.filter((e) => e.status === 'PUBLISHED').length} sub="publiés" color={GOLD} />
+        <KpiCard label="Ventes brutes" value={formatFcfa(grossRevenue)} sub="avant commission" color={GREEN} />
       </div>
-      {hasUnlimited && (
-        <div style={{ ...mutedText, fontSize: 12, marginBottom: 12 }}>
-          Les ventes par tarif ne sont détaillées que pour les tarifs à capacité limitée ; le total « Billets vendus » couvre tous les tarifs.
-        </div>
-      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {salesEvents.length === 0 && <div style={mutedText}>Aucun événement publié.</div>}
+        {salesEvents.length === 0 && <div style={mutedText}>Aucun événement publié ou dépublié.</div>}
         {salesEvents.map((event) => (
           <div key={event.id} className="bo-card" style={cardStyle}>
             <EventHeader event={event} />
             <div style={{ display: 'grid', gap: 8, marginTop: 14 }}>
               {event.tickets.map((ticket) => {
-                const sold = soldCount(ticket);
-                const pct = sold != null && ticket.capacity ? Math.round((sold / ticket.capacity) * 100) : null;
+                const pct = ticket.capacity ? Math.round((ticket.sold / ticket.capacity) * 100) : null;
                 return (
                   <div key={ticket.id} style={{ ...rowStyle, gridTemplateColumns: '1fr 1fr 1fr 1.2fr' }}>
-                    <strong>{ticket.type}</strong>
-                    <span>{sold == null ? '— vendus' : `${sold} vendu(s)`}</span>
-                    <span>{sold == null ? '—' : formatFcfa(sold * ticket.price)}</span>
+                    <strong>{ticket.name}</strong>
+                    <span>{`${ticket.sold} vendu(s)`}</span>
+                    <span>{formatFcfa(ticket.revenue)}</span>
                     {pct == null ? (
-                      <span style={mutedText}>Capacité illimitée</span>
+                      <span style={mutedText}>Places illimitées</span>
                     ) : (
                       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ flex: 1, height: 6, borderRadius: 3, background: '#E7DED0', overflow: 'hidden' }}>
@@ -145,7 +134,7 @@ function ExportsSection({ events, onExport, onExportAll }: Readonly<{
     <div className="bo-card" style={cardStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <div>
-          <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: 14, fontWeight: 700 }}>Manifestes</div>
+          <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: 14, fontWeight: 700 }}>Listes de participants</div>
           <div style={{ ...mutedText, fontSize: 12 }}>
             Un fichier CSV par événement publié : chaque billet émis (code, tarif, porteur, statut de scan) — la liste remise aux agents.
           </div>

@@ -6,12 +6,13 @@ import { EntityForm, type FieldDef, type FormValues } from '../components/Entity
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SuccessPanel } from '../components/SuccessPanel';
 import { LoadingState, ErrorState, InlineRefreshHint } from '../components/LoadingState';
-import { getEvents, createEvent, updateEvent, deleteEvent, uploadEventImage, setEventImagePreset, type EventInput } from '../api/events';
+import { getEvents, createEvent, updateEvent, deleteEvent, uploadEventImage, setEventImagePreset, uploadEventCover, type EventInput } from '../api/events';
 import { CoverField } from '../components/CoverField';
-import { TicketTypesField } from '../components/TicketTypesField';
-import { newTicketDraft, toTicketPayloads, type TicketDraft } from '../utils/ticketDrafts';
+import { LogoField } from '../components/LogoField';
+import { TicketCategoriesField } from '../components/TicketCategoriesField';
+import { toTicketPayloads, type TicketDraft } from '../utils/ticketDrafts';
 import { Tabs } from '../components/ui';
-import { applyCover, initialCover, type CoverChoice } from '../utils/cover';
+import { applyCoverFile, applyLogo, initialLogo, type LogoChoice } from '../utils/logo';
 import { filterRows } from '../utils/filterRows';
 import { useCollection } from '../hooks/useCollection';
 import type { TableFilters } from '../hooks/useTableFilters';
@@ -33,9 +34,10 @@ const COLUMNS: Column[] = [
 
 const STATUS_LABEL: Record<OrganizerEventStatus, string> = {
   DRAFT: 'Brouillon',
-  PENDING_APPROVAL: 'En attente',
-  APPROVED: 'Validé (non publié)',
+  PENDING_APPROVAL: 'En cours de validation',
+  APPROVED: 'Validé, à publier',
   PUBLISHED: 'Publié',
+  UNPUBLISHED: 'Dépublié',
   REJECTED: 'Rejeté',
 };
 
@@ -44,6 +46,7 @@ const STATUS_COLOR: Record<OrganizerEventStatus, [string, string]> = {
   PENDING_APPROVAL: ['#9A7800', 'rgba(252,209,22,0.2)'],
   APPROVED: ['#1D5C8A', 'rgba(29,92,138,0.12)'],
   PUBLISHED: [GREEN, 'rgba(22,74,35,0.1)'],
+  UNPUBLISHED: ['#6B6459', 'rgba(107,100,89,0.14)'],
   REJECTED: ['#CE1126', 'rgba(206,17,38,0.12)'],
 };
 
@@ -91,12 +94,13 @@ interface EventsViewProps {
 }
 
 type StatusTab = 'ALL' | OrganizerEventStatus;
-const STATUS_TABS: StatusTab[] = ['ALL', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'REJECTED', 'DRAFT'];
+const STATUS_TABS: StatusTab[] = ['ALL', 'PENDING_APPROVAL', 'APPROVED', 'PUBLISHED', 'UNPUBLISHED', 'REJECTED', 'DRAFT'];
 const TAB_LABEL: Record<StatusTab, string> = {
   ALL: 'Tous',
   PENDING_APPROVAL: 'À valider',
-  APPROVED: 'Validés (non publiés)',
+  APPROVED: 'Validés, à publier',
   PUBLISHED: 'Publiés',
+  UNPUBLISHED: 'Dépubliés',
   REJECTED: 'Rejetés',
   DRAFT: 'Brouillons',
 };
@@ -110,8 +114,10 @@ export function EventsView(props: Readonly<EventsViewProps>) {
   const [statusTab, setStatusTab] = useState<StatusTab>(
     STATUS_TABS.includes(section as StatusTab) ? (section as StatusTab) : 'ALL',
   );
-  const [cover, setCover] = useState<CoverChoice>(() => initialCover(EMPTY.category));
-  const [ticketDrafts, setTicketDrafts] = useState<TicketDraft[]>(() => [newTicketDraft()]);
+  const [cover, setCover] = useState<LogoChoice | null>(() => initialLogo(EMPTY.category));
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  // Aucune catégorie au départ : elles sont créées par la fenêtre rapide (au moins une exigée à l'envoi).
+  const [ticketDrafts, setTicketDrafts] = useState<TicketDraft[]>([]);
 
   if (loading) return <LoadingState label="Chargement des événements…" />;
   if (error) return <ErrorState message={error} />;
@@ -154,8 +160,13 @@ export function EventsView(props: Readonly<EventsViewProps>) {
       await updateEvent(editing.id, payload);
       setSuccessMsg(`Événement ${payload.name} mis à jour avec succès`);
     } else {
-      const created = await createEvent({ ...payload, tickets: toTicketPayloads(ticketDrafts) });
-      const warning = await applyCover(created.id, payload.category, cover, { upload: uploadEventImage, preset: setEventImagePreset });
+      const tickets = toTicketPayloads(ticketDrafts);
+      // Un événement de la plateforme est publié immédiatement : sa couverture est donc exigée dès la création.
+      if (!coverFile) throw new Error("Ajoutez une image de couverture : un événement de la plateforme est publié dès sa création.");
+      const created = await createEvent({ ...payload, tickets });
+      const logoWarning = await applyLogo(created.id, payload.category, cover ?? initialLogo(payload.category), { upload: uploadEventImage, preset: setEventImagePreset });
+      const coverWarning = await applyCoverFile(created.id, coverFile, uploadEventCover);
+      const warning = [logoWarning, coverWarning].filter(Boolean).join(' ') || null;
       // Événement de la plateforme : en ligne immédiatement, sans validation.
       setSuccessMsg(
         warning ? `Événement ${payload.name} créé et publié. ${warning}` : `Événement ${payload.name} créé et publié avec succès`,
@@ -219,8 +230,9 @@ export function EventsView(props: Readonly<EventsViewProps>) {
         onPrevPage={() => filters.setPage(Math.max(1, page - 1))}
         onNextPage={() => filters.setPage(Math.min(totalPages, page + 1))}
         onCreate={() => {
-          setCover(initialCover(EMPTY.category));
-          setTicketDrafts([newTicketDraft()]);
+          setCover(initialLogo(EMPTY.category));
+          setCoverFile(null);
+          setTicketDrafts([]);
           setEditing('new');
         }}
       />
@@ -240,8 +252,9 @@ export function EventsView(props: Readonly<EventsViewProps>) {
                 editing === 'new'
                   ? (values) => (
                       <div style={{ display: 'grid', gap: 18 }}>
-                        <TicketTypesField value={ticketDrafts} onChange={setTicketDrafts} />
-                        <CoverField category={String(values.category)} value={cover} onChange={setCover} />
+                        <TicketCategoriesField value={ticketDrafts} onChange={setTicketDrafts} />
+                        <LogoField category={String(values.category)} value={cover} onChange={setCover} />
+                        <CoverField file={coverFile} onChange={setCoverFile} logoFile={cover?.kind === 'file' ? cover.file : null} />
                       </div>
                     )
                   : undefined
