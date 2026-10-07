@@ -18,6 +18,8 @@ export interface EventInput {
   date: string;
   desc: string;
   icon: string;
+  /** Tarifs fixés dès la création. */
+  tickets?: TicketTypeInput[];
 }
 
 export interface TicketTypeInput {

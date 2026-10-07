@@ -10,6 +10,8 @@ export interface OrganizerEventInput {
   date: string;
   desc: string;
   icon: string;
+  /** Tarifs fixés par l'organisateur dès la création. */
+  tickets?: OrganizerTicketTypeInput[];
 }
 
 export interface OrganizerTicketTypeInput {
