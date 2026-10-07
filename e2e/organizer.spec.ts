@@ -100,6 +100,7 @@ test.describe('Espace ORGANIZER', () => {
     await page.locator('#field-city').fill('Ségou');
     await page.locator('#field-location').fill('Quai du fleuve');
     await page.locator('#field-date').fill('2027-02-10T20:00');
+    await page.getByLabel('Prix du tarif Standard').fill('5000');
     await page.getByRole('button', { name: 'Créer', exact: true }).click();
     await expect(page.getByText(`Événement ${name} créé avec succès (brouillon)`)).toBeVisible();
 
@@ -117,11 +118,44 @@ test.describe('Espace ORGANIZER', () => {
     await page.locator('#field-city').fill('Bamako');
     await page.locator('#field-location').fill('Ciné Babemba');
     await page.locator('#field-date').fill('2027-02-12T20:00');
+    await page.getByLabel('Prix du tarif Standard').fill('5000');
     await page.getByRole('button', { name: 'Créer', exact: true }).click();
     await expect(page.getByText(`Événement ${name} créé avec succès (brouillon)`)).toBeVisible();
 
     const created = await findOrganizerEventByName(organizer, name);
     expect(created?.imageUrl).toContain('/presets/cinema.svg');
+  });
+
+  test('nouvel événement : l’organisateur fixe ses tarifs dès la création', async ({ page, organizer }) => {
+    const name = `E2E Orga Tarifs ${Date.now()}`;
+    await uiLogin(page, organizer.email, organizer.password);
+    await navTo(page, 'organizerEvents');
+    await page.getByRole('button', { name: '+ Nouvel événement' }).click();
+
+    await page.locator('#field-name').fill(name);
+    await page.locator('#field-city').fill('Bamako');
+    await page.locator('#field-location').fill('Palais de la culture');
+    await page.locator('#field-date').fill('2027-05-01T20:00');
+    // Sans prix : refus clair, rien n'est créé.
+    await page.getByRole('button', { name: 'Créer', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('Prix invalide pour le tarif Standard');
+
+    await page.getByLabel('Prix du tarif Standard').fill('5000');
+    await page.getByLabel('Capacité du tarif Standard').fill('300');
+    await page.getByRole('button', { name: '+ Ajouter un tarif' }).click();
+    await page.getByLabel('Prix du tarif VIP').fill('20000');
+    await page.getByRole('button', { name: 'Créer', exact: true }).click();
+    await expect(page.getByText(`Événement ${name} créé avec succès (brouillon)`)).toBeVisible();
+
+    const created = await findOrganizerEventByName(organizer, name);
+    expect(created?.tickets.find((t) => t.type === 'VIP')?.capacity ?? null).toBeNull();
+    expect(created?.tickets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'STANDARD', price: 5000, capacity: 300 }),
+        // Capacité illimitée : le champ est absent de la réponse (null non sérialisé).
+        expect.objectContaining({ type: 'VIP', price: 20000 }),
+      ]),
+    );
   });
 
   test('billetterie : onglets Tarifs, Ventes, Manifestes & exports', async ({ page, organizer, adminToken }) => {

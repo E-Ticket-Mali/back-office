@@ -16,6 +16,8 @@ import {
   type OrganizerEventInput,
 } from '../api/organizerEvents';
 import { CoverField } from '../components/CoverField';
+import { TicketTypesField } from '../components/TicketTypesField';
+import { newTicketDraft, toTicketPayloads, type TicketDraft } from '../utils/ticketDrafts';
 import { Tabs } from '../components/ui';
 import { PublishDialog } from '../components/PublishDialog';
 import type { RowExtraAction } from '../components/table/types';
@@ -114,6 +116,7 @@ export function OrganizerEventsView(props: Readonly<OrganizerEventsViewProps>) {
   );
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [cover, setCover] = useState<CoverChoice>(() => initialCover(EMPTY.category));
+  const [ticketDrafts, setTicketDrafts] = useState<TicketDraft[]>(() => [newTicketDraft()]);
 
   if (loading) return <LoadingState label="Chargement des événements…" />;
   if (error) return <ErrorState message={error} />;
@@ -156,7 +159,7 @@ export function OrganizerEventsView(props: Readonly<OrganizerEventsViewProps>) {
       await updateOrganizerEvent(editing.id, payload);
       setSuccessMsg(`Événement ${payload.name} mis à jour avec succès`);
     } else {
-      const created = await createOrganizerEvent(payload);
+      const created = await createOrganizerEvent({ ...payload, tickets: toTicketPayloads(ticketDrafts) });
       const warning = await applyCover(created.id, payload.category, cover, {
         upload: uploadOrganizerEventImage,
         preset: setOrganizerEventImagePreset,
@@ -213,6 +216,7 @@ export function OrganizerEventsView(props: Readonly<OrganizerEventsViewProps>) {
         onNextPage={() => filters.setPage(Math.min(totalPages, page + 1))}
         onCreate={() => {
           setCover(initialCover(EMPTY.category));
+          setTicketDrafts([newTicketDraft()]);
           setEditing('new');
         }}
       />
@@ -244,7 +248,12 @@ export function OrganizerEventsView(props: Readonly<OrganizerEventsViewProps>) {
               onCancel={closeModal}
               renderExtra={
                 editing === 'new'
-                  ? (values) => <CoverField category={String(values.category)} value={cover} onChange={setCover} />
+                  ? (values) => (
+                      <div style={{ display: 'grid', gap: 18 }}>
+                        <TicketTypesField value={ticketDrafts} onChange={setTicketDrafts} />
+                        <CoverField category={String(values.category)} value={cover} onChange={setCover} />
+                      </div>
+                    )
                   : undefined
               }
             />

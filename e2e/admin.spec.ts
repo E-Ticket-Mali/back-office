@@ -85,8 +85,9 @@ test.describe('Espace ADMIN', () => {
     await page.locator('#field-city').fill('Bamako');
     await page.locator('#field-location').fill('Stade du 26 mars');
     await page.locator('#field-date').fill('2027-03-01T18:00');
+    await page.getByLabel('Prix du tarif Standard').fill('5000');
     await page.getByRole('button', { name: 'Créer', exact: true }).click();
-    await expect(page.getByText(`Événement ${name} créé avec succès`)).toBeVisible();
+    await expect(page.getByText(`Événement ${name} créé et publié avec succès`)).toBeVisible();
 
     const created = await findAdminEventByName(adminToken, name);
     expect(created?.imageUrl).toContain('/presets/theatre.svg');
@@ -103,11 +104,42 @@ test.describe('Espace ADMIN', () => {
     await page.locator('#field-city').fill('Bamako');
     await page.locator('#field-location').fill('Palais des sports');
     await page.locator('#field-date').fill('2027-04-01T18:00');
+    await page.getByLabel('Prix du tarif Standard').fill('5000');
     await page.getByRole('button', { name: 'Créer', exact: true }).click();
-    await expect(page.getByText(`Événement ${name} créé avec succès`)).toBeVisible();
+    await expect(page.getByText(`Événement ${name} créé et publié avec succès`)).toBeVisible();
 
     const created = await findAdminEventByName(adminToken, name);
     expect(created?.imageUrl).toMatch(/\/catalog\/events\/[^/]+\/image$/);
+  });
+
+  test('tarifs d’un événement organisateur : consultation seule pour l’admin', async ({ page, organizer }) => {
+    const event = await createOrganizerEvent(organizer, { submit: true });
+    await page.reload();
+    await navTo(page, 'events');
+    await page.getByPlaceholder('Rechercher...').fill(event.name);
+    await expect(page.getByText(organizer.name)).toBeVisible();
+    await page.getByRole('button', { name: 'Détails' }).first().click();
+
+    await expect(page.getByTestId('pricing-locked')).toContainText(organizer.name);
+    await expect(page.getByRole('button', { name: 'Ajouter', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Supprimer', exact: true })).toHaveCount(0);
+  });
+
+  test('événement de la plateforme : publié dès sa création, sans validation', async ({ page, adminToken }) => {
+    const name = `E2E Plateforme ${Date.now()}`;
+    await navTo(page, 'events');
+    await page.getByRole('button', { name: '+ Nouvel événement' }).click();
+    await page.locator('#field-name').fill(name);
+    await page.locator('#field-city').fill('Bamako');
+    await page.locator('#field-location').fill('Stade Modibo Keïta');
+    await page.locator('#field-date').fill('2027-06-01T16:00');
+    await page.getByLabel('Prix du tarif Standard').fill('0');
+    await page.getByRole('button', { name: 'Créer', exact: true }).click();
+    await expect(page.getByText(`Événement ${name} créé et publié avec succès`)).toBeVisible();
+
+    const created = await findAdminEventByName(adminToken, name);
+    expect(created?.status).toBe('PUBLISHED');
+    expect(created?.tickets).toEqual([expect.objectContaining({ type: 'STANDARD', price: 0 })]);
   });
 
   test('commissions : taux spécifique puis retour au taux par défaut', async ({ page, organizer }) => {

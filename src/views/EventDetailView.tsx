@@ -140,6 +140,8 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
     return <LoadingState label="Chargement de l'événement…" />;
   }
   const event = eventRows[0];
+  // Événement d'organisateur : ses tarifs sont fixés par l'organisateur, l'admin les consulte seulement.
+  const pricingLocked = Boolean(event.organizerName);
   const stats = statsRows[0];
   const status = effectiveStatus(event);
   const [statusColor, statusBg] = EVENT_STATUS_COLOR[status];
@@ -322,6 +324,13 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
         <div className="bo-card" style={cardStyle}>
           <div style={cardTitleStyle}>Types de billets</div>
 
+          {pricingLocked && (
+            <div data-testid="pricing-locked" style={{ fontSize: 12.5, color: '#6B6459', background: '#FAF3EB', borderRadius: 8, padding: '9px 12px', marginBottom: 14 }}>
+              Tarifs fixés par l'organisateur <strong>{event.organizerName}</strong> — consultation uniquement.
+            </div>
+          )}
+
+          {!pricingLocked && (
           <div className="bo-compact-form-row" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
             <select value={newType} onChange={(e) => setNewType(e.target.value as TicketType)} style={selectStyle}>
               {TICKET_TYPES.map((t) => (
@@ -349,6 +358,7 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
               Ajouter
             </button>
           </div>
+          )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {event.tickets.length === 0 && <div style={{ fontSize: 13, color: '#6B6459' }}>Aucun type de billet.</div>}
@@ -357,6 +367,9 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
               return (
                 <div key={tt.id} style={rowStyle}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {pricingLocked ? (
+                      tt.imageUrl && <img src={tt.imageUrl} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover' }} />
+                    ) : (
                     <ImagePicker
                       imageUrl={tt.imageUrl ?? null}
                       size={40}
@@ -364,6 +377,7 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
                       onSelectPreset={(key) => setTicketTypeImagePreset(event.id, tt.id, key).then(() => reloadEvent())}
                       onClear={() => clearTicketTypeImage(event.id, tt.id).then(() => reloadEvent())}
                     />
+                    )}
                     <TicketTypePill type={tt.type} />
                     {tt.price === 0 && <FreePill />}
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#1F2E35' }}>{TICKET_LABELS[tt.type]}</span>
@@ -386,12 +400,16 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
                         {tt.price === 0 ? '0 FCFA' : `${tt.price.toLocaleString('fr-FR')} FCFA`} ·{' '}
                         {tt.capacity == null ? 'illimité' : `${tt.remaining ?? 0}/${tt.capacity} restant(s)`}
                       </span>
-                      <button type="button" onClick={() => startEditType(tt)} style={smallBtn('#164A23')}>
-                        Modifier
-                      </button>
-                      <button type="button" onClick={() => removeType(tt)} style={smallBtn('#A6341D')}>
-                        Supprimer
-                      </button>
+                      {!pricingLocked && (
+                        <>
+                          <button type="button" onClick={() => startEditType(tt)} style={smallBtn('#164A23')}>
+                            Modifier
+                          </button>
+                          <button type="button" onClick={() => removeType(tt)} style={smallBtn('#A6341D')}>
+                            Supprimer
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

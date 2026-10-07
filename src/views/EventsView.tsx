@@ -8,6 +8,8 @@ import { SuccessPanel } from '../components/SuccessPanel';
 import { LoadingState, ErrorState, InlineRefreshHint } from '../components/LoadingState';
 import { getEvents, createEvent, updateEvent, deleteEvent, uploadEventImage, setEventImagePreset, type EventInput } from '../api/events';
 import { CoverField } from '../components/CoverField';
+import { TicketTypesField } from '../components/TicketTypesField';
+import { newTicketDraft, toTicketPayloads, type TicketDraft } from '../utils/ticketDrafts';
 import { Tabs } from '../components/ui';
 import { applyCover, initialCover, type CoverChoice } from '../utils/cover';
 import { filterRows } from '../utils/filterRows';
@@ -20,6 +22,7 @@ const PAGE_SIZE = 8;
 
 const COLUMNS: Column[] = [
   { label: 'Événement', width: 'minmax(144px,0.8fr)' },
+  { label: 'Organisateur', width: 140 },
   { label: 'Catégorie', width: 130 },
   { label: 'Statut', width: 120 },
   { label: 'Ville', width: 110 },
@@ -108,6 +111,7 @@ export function EventsView(props: Readonly<EventsViewProps>) {
     STATUS_TABS.includes(section as StatusTab) ? (section as StatusTab) : 'ALL',
   );
   const [cover, setCover] = useState<CoverChoice>(() => initialCover(EMPTY.category));
+  const [ticketDrafts, setTicketDrafts] = useState<TicketDraft[]>(() => [newTicketDraft()]);
 
   if (loading) return <LoadingState label="Chargement des événements…" />;
   if (error) return <ErrorState message={error} />;
@@ -131,6 +135,7 @@ export function EventsView(props: Readonly<EventsViewProps>) {
       key: ev.id,
       cells: [
         eventName(ev.category, ev.name),
+        plain(ev.organizerName ?? 'Plateforme'),
         badge(CATEGORY_LABELS[ev.category], GREEN, 'rgba(22,74,35,0.1)'),
         badge(STATUS_LABEL[status], statusColor, statusBg),
         plain(ev.city),
@@ -149,9 +154,12 @@ export function EventsView(props: Readonly<EventsViewProps>) {
       await updateEvent(editing.id, payload);
       setSuccessMsg(`Événement ${payload.name} mis à jour avec succès`);
     } else {
-      const created = await createEvent(payload);
+      const created = await createEvent({ ...payload, tickets: toTicketPayloads(ticketDrafts) });
       const warning = await applyCover(created.id, payload.category, cover, { upload: uploadEventImage, preset: setEventImagePreset });
-      setSuccessMsg(warning ? `Événement ${payload.name} créé. ${warning}` : `Événement ${payload.name} créé avec succès`);
+      // Événement de la plateforme : en ligne immédiatement, sans validation.
+      setSuccessMsg(
+        warning ? `Événement ${payload.name} créé et publié. ${warning}` : `Événement ${payload.name} créé et publié avec succès`,
+      );
     }
     reload();
   };
@@ -212,6 +220,7 @@ export function EventsView(props: Readonly<EventsViewProps>) {
         onNextPage={() => filters.setPage(Math.min(totalPages, page + 1))}
         onCreate={() => {
           setCover(initialCover(EMPTY.category));
+          setTicketDrafts([newTicketDraft()]);
           setEditing('new');
         }}
       />
@@ -229,7 +238,12 @@ export function EventsView(props: Readonly<EventsViewProps>) {
               onCancel={closeModal}
               renderExtra={
                 editing === 'new'
-                  ? (values) => <CoverField category={String(values.category)} value={cover} onChange={setCover} />
+                  ? (values) => (
+                      <div style={{ display: 'grid', gap: 18 }}>
+                        <TicketTypesField value={ticketDrafts} onChange={setTicketDrafts} />
+                        <CoverField category={String(values.category)} value={cover} onChange={setCover} />
+                      </div>
+                    )
                   : undefined
               }
             />

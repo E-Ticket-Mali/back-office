@@ -114,12 +114,20 @@ export async function getEventImageUrl(token: string, eventId: string, role: 'ad
   return event.imageUrl;
 }
 
-export async function findOrganizerEventByName(organizer: TestOrganizer, name: string): Promise<{ id: string; imageUrl: string | null } | undefined> {
-  const events = await call<{ id: string; name: string; imageUrl: string | null }[]>('/organizer/events', { token: organizer.token });
+export interface EventSummary {
+  id: string;
+  name: string;
+  status: string;
+  imageUrl: string | null;
+  tickets: { type: string; price: number; capacity: number | null }[];
+}
+
+export async function findOrganizerEventByName(organizer: TestOrganizer, name: string): Promise<EventSummary | undefined> {
+  const events = await call<EventSummary[]>('/organizer/events', { token: organizer.token });
   return events.find((e) => e.name === name);
 }
 
-export async function findAdminEventByName(adminToken: string, name: string): Promise<{ id: string; imageUrl: string | null } | undefined> {
-  const events = await call<{ id: string; name: string; imageUrl: string | null }[]>('/admin/events', { token: adminToken });
+export async function findAdminEventByName(adminToken: string, name: string): Promise<EventSummary | undefined> {
+  const events = await call<EventSummary[]>('/admin/events', { token: adminToken });
   return events.find((e) => e.name === name);
 }

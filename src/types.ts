@@ -107,6 +107,8 @@ export interface EventItem {
   tickets: EventTicket[];
   /** Null when no image/preset has been set — render a generic category icon instead. */
   imageUrl: string | null;
+  /** Organisateur propriétaire ; null = événement de la plateforme (créé par l'admin). */
+  organizerName?: string | null;
 }
 
 export interface AdminBooking {
