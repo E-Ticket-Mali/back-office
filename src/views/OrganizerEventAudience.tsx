@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Attendee, AudienceBookingStatus, EventSummary } from '../api/organizerAudience';
-import { BookingStatusBadge, CustomerCell, EmptyRow, Gauge, SearchBox, matchesQuery, right, shortDate, td, th } from '../components/AudienceBlocks';
+import { RTable, BookingStatusBadge, CustomerCell, EmptyRow, Gauge, SearchBox, matchesQuery, right, shortDate, td, th } from '../components/AudienceBlocks';
 import { KpiCard } from '../components/KpiCard';
 import { cardStyle, formatFcfa, mutedText, outlineButtonStyle } from '../components/uiStyles';
 import { EVENT_CATEGORY_LABELS } from '../utils/eventLabels';
@@ -195,7 +195,7 @@ export function AttendeesTab({ attendees, onOpenCustomer, onExport }: AttendeesP
         </div>
       </div>
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+        <RTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
           <thead>
             <tr style={{ borderBottom: '1px solid #E7DED0' }}>
               <th style={th}>Client</th>
@@ -227,7 +227,7 @@ export function AttendeesTab({ attendees, onOpenCustomer, onExport }: AttendeesP
               </tr>
             ))}
           </tbody>
-        </table>
+        </RTable>
       </div>
     </div>
   );

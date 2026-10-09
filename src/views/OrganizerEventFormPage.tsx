@@ -201,8 +201,8 @@ function EditorBody(props: Readonly<{ existing?: OrganizerEventItem }>) {
       </div>
 
       {reReview && (
-        <div role="note" style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(252,209,22,0.18)', color: '#6B5400', fontSize: 13 }}>
-          Cet événement est {existing.status === 'PUBLISHED' ? 'publié' : 'validé'} : toute modification le renverra en validation et le retirera de la vente jusqu&apos;à nouvelle approbation.
+        <div role="note" style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(22,74,35,0.08)', color: '#164A23', fontSize: 13 }}>
+          Cet événement est {existing.status === 'PUBLISHED' ? 'publié' : 'validé'} : vos modifications s&apos;appliquent immédiatement, sans nouvelle validation. L&apos;administration en est informée.
         </div>
       )}
 

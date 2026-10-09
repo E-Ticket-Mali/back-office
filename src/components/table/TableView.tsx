@@ -53,6 +53,8 @@ export function TableView({
   headerExtra,
 }: Readonly<TableViewProps>) {
   const gridCols = gridTemplateFor(columns);
+  // En dessous de cette largeur le tableau défile horizontalement plutôt que d'écraser ses colonnes.
+  const minWidth = columns.length * 120;
 
   return (
     <div>
@@ -105,6 +107,7 @@ export function TableView({
       </div>
 
       <div
+        className="bo-table-shell bo-table-scroll"
         style={{
           background: '#FFFFFF',
           border: '1px solid #E7DED0',
@@ -116,9 +119,11 @@ export function TableView({
         }}
       >
         <div
+          className="bo-table-head"
           style={{
             display: 'grid',
             gridTemplateColumns: gridCols,
+            minWidth,
             gap: 8,
             background: '#DCE7DD',
             color: '#0F3419',
@@ -146,10 +151,11 @@ export function TableView({
           <div
             key={row.key}
             data-testid="table-row"
-            className="erp-table-row"
+            className="erp-table-row bo-table-row"
             style={{
               display: 'grid',
               gridTemplateColumns: gridCols,
+              minWidth,
               gap: 8,
               alignItems: 'center',
               borderTop: '1px solid #E7DED0',
@@ -159,8 +165,10 @@ export function TableView({
               transition: 'background 0.12s',
             }}
           >
-            {row.cells.map((cell) => (
-              <CellView key={`${row.key}-${cell.kind}-${'text' in cell ? String(cell.text) : 'actions'}`} cell={cell} />
+            {row.cells.map((cell, index) => (
+              <div key={`${row.key}-${columns[index]?.label ?? index}`} className="bo-table-cell" data-label={columns[index]?.label ?? ''} style={{ minWidth: 0 }}>
+                <CellView cell={cell} />
+              </div>
             ))}
           </div>
         ))}

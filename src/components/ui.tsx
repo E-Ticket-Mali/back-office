@@ -31,7 +31,7 @@ export interface TabDef<T extends string> {
 export function Tabs<T extends string>(props: Readonly<{ tabs: TabDef<T>[]; active: T; onChange: (id: T) => void }>) {
   const { tabs, active, onChange } = props;
   return (
-    <div role="tablist" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+    <div role="tablist" className="bo-tabs" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
       {tabs.map((tab) => {
         const selected = tab.id === active;
         return (

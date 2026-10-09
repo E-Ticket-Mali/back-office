@@ -11,6 +11,8 @@ interface TopbarProps {
   adminName: string;
   role: string;
   onLogout: () => void;
+  /** Ouvre le menu latéral (bouton visible uniquement sur petit écran). */
+  onOpenNav: () => void;
 }
 
 function initialsOf(name: string): string {
@@ -22,7 +24,7 @@ function initialsOf(name: string): string {
 }
 
 export function Topbar(props: Readonly<TopbarProps>) {
-  const { title, hasSearch, search, onSearch, notifications, onMarkAllRead, adminName, role, onLogout } = props;
+  const { title, hasSearch, search, onSearch, notifications, onMarkAllRead, adminName, role, onLogout, onOpenNav } = props;
   return (
     <div
       className="bo-topbar"
@@ -40,7 +42,14 @@ export function Topbar(props: Readonly<TopbarProps>) {
         zIndex: 5,
       }}
     >
-      <div className="bo-topbar-title" style={{ fontFamily: "'Poppins',sans-serif", fontSize: 17, fontWeight: 700, color: '#1F2E35' }}>{title}</div>
+      <div className="bo-topbar-lead" style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+        <button type="button" className="bo-nav-toggle" data-testid="nav-toggle" aria-label="Ouvrir le menu" onClick={onOpenNav}>
+          <span aria-hidden />
+          <span aria-hidden />
+          <span aria-hidden />
+        </button>
+        <div className="bo-topbar-title" style={{ fontFamily: "'Poppins',sans-serif", fontSize: 17, fontWeight: 700, color: '#1F2E35' }}>{title}</div>
+      </div>
       <div className="bo-topbar-meta" style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         {hasSearch && (
           <input
@@ -61,13 +70,13 @@ export function Topbar(props: Readonly<TopbarProps>) {
             }}
           />
         )}
-        <div style={{ width: 1, height: 24, background: '#E7DED0' }} />
-        <div style={{ fontSize: 13, color: '#6B6459' }}>
+        <div className="bo-topbar-extra" style={{ width: 1, height: 24, background: '#E7DED0' }} />
+        <div className="bo-topbar-extra" style={{ fontSize: 13, color: '#6B6459' }}>
           {new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
         </div>
-        <div style={{ width: 1, height: 24, background: '#E7DED0' }} />
+        <div className="bo-topbar-extra" style={{ width: 1, height: 24, background: '#E7DED0' }} />
         <NotificationBell notifications={notifications} onMarkAllRead={onMarkAllRead} />
-        <div style={{ width: 1, height: 24, background: '#E7DED0' }} />
+        <div className="bo-topbar-extra" style={{ width: 1, height: 24, background: '#E7DED0' }} />
         <ProfileMenu name={adminName} role={role} initials={initialsOf(adminName) || 'AD'} onLogout={onLogout} />
       </div>
     </div>

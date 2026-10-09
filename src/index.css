@@ -139,6 +139,43 @@ body {
   height: 100%;
 }
 
+/* Bouton « menu » et voile du tiroir : invisibles sur grand écran. */
+.bo-nav-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  border: 1.5px solid #e7ded0;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.bo-nav-toggle span {
+  display: block;
+  height: 2px;
+  border-radius: 2px;
+  background: #1f2e35;
+}
+
+.bo-nav-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  border: none;
+  background: rgba(31, 46, 53, 0.45);
+  cursor: pointer;
+}
+
+.bo-tabs button {
+  white-space: nowrap;
+}
+
 @media (max-width: 1200px) {
   .bo-kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -150,32 +187,20 @@ body {
 }
 
 @media (max-width: 960px) {
-  .bo-shell {
-    flex-direction: column;
-  }
-
   .bo-content {
     padding: 18px 16px 28px;
   }
 
   .bo-topbar {
     height: auto !important;
-    padding: 14px 16px !important;
-    align-items: flex-start !important;
-    gap: 12px;
+    min-height: 56px;
+    padding: 10px 16px !important;
+    align-items: center !important;
+    gap: 10px;
   }
 
   .bo-topbar-title {
     font-size: 16px !important;
-  }
-
-  .bo-topbar-meta {
-    width: 100%;
-    justify-content: flex-start !important;
-  }
-
-  .bo-topbar-search {
-    width: min(100%, 340px) !important;
   }
 
   .bo-table-toolbar,
@@ -215,10 +240,64 @@ body {
     grid-template-columns: 1fr !important;
   }
 
+  /* Menu latéral : tiroir qui glisse depuis la gauche, ouvert par le bouton de la barre du haut. */
   .bo-sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: min(290px, 86vw) !important;
+    height: 100dvh !important;
+    transform: translateX(-100%);
+    transition: transform 200ms ease !important;
+    z-index: 60;
+  }
+
+  .bo-nav-open .bo-sidebar {
+    transform: translateX(0);
+    box-shadow: 0 0 40px rgba(31, 46, 53, 0.25);
+  }
+
+  .bo-nav-open .bo-nav-backdrop {
+    display: block;
+  }
+
+  .bo-nav-toggle {
+    display: inline-flex;
+  }
+
+  .bo-topbar {
+    flex-wrap: wrap;
+  }
+
+  .bo-topbar-lead {
+    flex: 1;
+  }
+
+  .bo-topbar-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .bo-topbar-meta {
+    flex-wrap: nowrap !important;
+    width: auto !important;
+    gap: 8px !important;
+  }
+
+  .bo-topbar-extra {
+    display: none;
+  }
+
+  .bo-topbar-search {
+    order: 9;
     width: 100% !important;
-    position: relative !important;
-    height: auto !important;
+  }
+
+  .bo-topbar-meta:has(.bo-topbar-search) {
+    flex-wrap: wrap !important;
+    width: 100% !important;
+    justify-content: flex-end !important;
   }
 
   .bo-hero.bo-hero-between {
@@ -250,4 +329,131 @@ input,
 select,
 button {
   font-family: 'Inter', sans-serif;
+}
+
+/* Petit écran : les tableaux deviennent des listes de cartes, les onglets une ligne défilante. */
+@media (max-width: 720px) {
+  .bo-content {
+    padding: 14px 12px 24px;
+  }
+
+  .bo-tabs {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .bo-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .bo-tabs button {
+    flex-shrink: 0;
+  }
+
+  .bo-table-scroll {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  .bo-table-head {
+    display: none !important;
+  }
+
+  .bo-table-row {
+    grid-template-columns: 1fr !important;
+    min-width: 0 !important;
+    gap: 8px !important;
+    padding: 14px !important;
+    margin-bottom: 10px;
+    border: 1px solid #e7ded0 !important;
+    border-radius: 12px;
+    background: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(31, 46, 53, 0.06);
+  }
+
+  .bo-table-cell,
+  .bo-rtable td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    text-align: right !important;
+  }
+
+  .bo-table-cell::before,
+  .bo-rtable td[data-label]::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    color: #6b6459;
+    text-align: left;
+  }
+
+  /* La première cellule sert de titre à la carte : pas de libellé, texte à gauche. */
+  .bo-table-cell:first-child,
+  .bo-rtable td:first-child {
+    justify-content: flex-start;
+    text-align: left !important;
+    font-weight: 700;
+    font-size: 14px;
+    padding-bottom: 8px !important;
+    border-bottom: 1px solid #f1eadf;
+  }
+
+  .bo-table-cell:first-child::before,
+  .bo-rtable td:first-child::before {
+    display: none;
+  }
+
+  .bo-table-cell[data-label='Actions'],
+  .bo-table-cell[data-label=''] {
+    justify-content: flex-end;
+    padding-top: 4px;
+  }
+
+  .bo-table-cell[data-label='Actions']::before,
+  .bo-table-cell[data-label='']::before {
+    display: none;
+  }
+
+  .bo-rtable {
+    min-width: 0 !important;
+    display: block;
+  }
+
+  .bo-rtable thead {
+    display: none;
+  }
+
+  .bo-rtable tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  .bo-rtable tr {
+    display: grid;
+    gap: 6px;
+    padding: 14px;
+    border: 1px solid #e7ded0 !important;
+    border-radius: 12px;
+    background: #ffffff;
+  }
+
+  .bo-rtable td {
+    padding: 0 !important;
+  }
+
+  .bo-rtable td[colspan] {
+    justify-content: center;
+    border-bottom: none;
+    font-weight: 400;
+    padding: 12px 0 !important;
+  }
 }

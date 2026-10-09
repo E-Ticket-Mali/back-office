@@ -34,7 +34,9 @@ export function CellView(props: Readonly<{ cell: CellType }>) {
   if (cell.kind === 'eventName') {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, color: '#1F2E35' }}>
-        <CategoryIcon category={cell.category} size={16} color="#164A23" />
+        <span style={{ display: 'inline-flex', flexShrink: 0 }}>
+          <CategoryIcon category={cell.category} size={16} color="#164A23" />
+        </span>
         <span style={{ overflowWrap: 'anywhere' }}>{cell.text}</span>
       </div>
     );
