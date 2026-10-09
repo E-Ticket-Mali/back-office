@@ -13,6 +13,8 @@ export interface RoomInput {
   type: RoomType;
   price: number;
   capacity: number;
+  /** Nombre de chambres de ce type (obligatoire à la création). */
+  quantity: number;
 }
 
 export const getHotels = () => http.get<Hotel[]>('/admin/hotels');

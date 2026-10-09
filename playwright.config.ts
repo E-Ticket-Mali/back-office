@@ -12,8 +12,9 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
-  timeout: 45_000,
-  expect: { timeout: 10_000 },
+  // Délais réglables pour une machine lente : E2E_TIMEOUT / E2E_EXPECT_TIMEOUT (millisecondes).
+  timeout: Number(process.env.E2E_TIMEOUT ?? 45_000),
+  expect: { timeout: Number(process.env.E2E_EXPECT_TIMEOUT ?? 10_000) },
   reporter: [['list'], ['html', { open: 'never' }]],
   globalSetup: './e2e/global-setup.ts',
   use: {

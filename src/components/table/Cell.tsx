@@ -83,9 +83,11 @@ export function CellView(props: Readonly<{ cell: CellType }>) {
   if (cell.kind === 'entityActions') {
     return (
       <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
-        <button type="button" onClick={cell.onEdit} title="Modifier" style={actionBtnStyle('#164A23')}>
-          Modifier
-        </button>
+        {cell.onEdit && (
+          <button type="button" onClick={cell.onEdit} title="Modifier" style={actionBtnStyle('#164A23')}>
+            Modifier
+          </button>
+        )}
         <button type="button" onClick={cell.onDetail} title="Détails" style={actionBtnStyle('#6B6459')}>
           Détails
         </button>

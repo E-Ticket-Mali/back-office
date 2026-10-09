@@ -65,7 +65,8 @@ export function HotelDetailView(props: Readonly<HotelDetailViewProps>) {
   const [newType, setNewType] = useState<RoomType>('SINGLE');
   const [newPrice, setNewPrice] = useState('');
   const [newCapacity, setNewCapacity] = useState('1');
-  const [editingRoom, setEditingRoom] = useState<Record<string, { price: string; capacity: string }>>({});
+  const [newQuantity, setNewQuantity] = useState('');
+  const [editingRoom, setEditingRoom] = useState<Record<string, { price: string; capacity: string; quantity: string }>>({});
   const { run, banner } = useActionError();
 
   if (loading || hotelRows.length === 0) return <LoadingState label="Chargement de l'hôtel…" />;
@@ -75,24 +76,36 @@ export function HotelDetailView(props: Readonly<HotelDetailViewProps>) {
     run(async () => {
       const price = Number(newPrice);
       const capacity = Number(newCapacity);
+      const quantity = Number(newQuantity);
       if (!(price > 0) || !Number.isInteger(capacity) || capacity < 1) {
         throw new Error('Renseignez un prix positif et une capacité d’au moins 1.');
       }
-      await addRoom(hotel.id, { type: newType, price, capacity });
+      if (newQuantity.trim() === '' || !Number.isInteger(quantity) || quantity < 1) {
+        throw new Error('Renseignez le nombre de chambres de ce type (au moins 1).');
+      }
+      await addRoom(hotel.id, { type: newType, price, capacity, quantity });
       setNewPrice('');
       setNewCapacity('1');
+      setNewQuantity('');
       reload();
     });
 
   const startEditRoom = (room: Room) => {
-    setEditingRoom((r) => ({ ...r, [room.id]: { price: String(room.price), capacity: String(room.capacity) } }));
+    setEditingRoom((r) => ({
+      ...r,
+      [room.id]: { price: String(room.price), capacity: String(room.capacity), quantity: room.quantity != null ? String(room.quantity) : '' },
+    }));
   };
 
   const saveRoom = (room: Room) =>
     run(async () => {
       const draft = editingRoom[room.id];
       if (!draft) return;
-      await updateRoom(hotel.id, room.id, { price: Number(draft.price), capacity: Number(draft.capacity) });
+      const quantity = draft.quantity.trim() === '' ? undefined : Number(draft.quantity);
+      if (quantity !== undefined && (!Number.isInteger(quantity) || quantity < 1)) {
+        throw new Error('Le nombre de chambres doit être d’au moins 1.');
+      }
+      await updateRoom(hotel.id, room.id, { price: Number(draft.price), capacity: Number(draft.capacity), quantity });
       setEditingRoom((r) => {
         const { [room.id]: _removed, ...rest } = r;
         return rest;
@@ -172,9 +185,19 @@ export function HotelDetailView(props: Readonly<HotelDetailViewProps>) {
           <input
             type="number"
             placeholder="Capacité"
+            aria-label="Capacité (personnes)"
             value={newCapacity}
             onChange={(e) => setNewCapacity(e.target.value)}
             style={{ ...selectStyle, width: 90 }}
+          />
+          <input
+            type="number"
+            min={1}
+            placeholder="Nb de chambres"
+            aria-label="Nombre de chambres de ce type"
+            value={newQuantity}
+            onChange={(e) => setNewQuantity(e.target.value)}
+            style={{ ...selectStyle, width: 130 }}
           />
           <button type="button" onClick={addNewRoom} style={smallBtn('#164A23')}>
             Ajouter
@@ -210,9 +233,19 @@ export function HotelDetailView(props: Readonly<HotelDetailViewProps>) {
                     />
                     <input
                       type="number"
+                      aria-label="Capacité (personnes)"
                       value={draft.capacity}
                       onChange={(e) => setEditingRoom((r) => ({ ...r, [room.id]: { ...draft, capacity: e.target.value } }))}
                       style={{ ...selectStyle, width: 90 }}
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      placeholder="Nb de chambres"
+                      aria-label="Nombre de chambres de ce type"
+                      value={draft.quantity}
+                      onChange={(e) => setEditingRoom((r) => ({ ...r, [room.id]: { ...draft, quantity: e.target.value } }))}
+                      style={{ ...selectStyle, width: 130 }}
                     />
                     <button type="button" onClick={() => saveRoom(room)} style={smallBtn('#164A23')}>
                       Enregistrer
@@ -220,7 +253,12 @@ export function HotelDetailView(props: Readonly<HotelDetailViewProps>) {
                   </div>
                 ) : (
                   <div style={{ fontSize: 12, color: '#6B6459' }}>
-                    {room.price.toLocaleString('fr-FR')} FCFA / nuit · {room.capacity} pers.
+                    {room.price.toLocaleString('fr-FR')} FCFA / nuit · {room.capacity} pers. ·{' '}
+                    {room.quantity != null ? (
+                      `${room.quantity} chambre(s)`
+                    ) : (
+                      <span style={{ color: '#A6741D', fontWeight: 600 }}>stock non renseigné (réservations illimitées)</span>
+                    )}
                   </div>
                 )}
               </div>

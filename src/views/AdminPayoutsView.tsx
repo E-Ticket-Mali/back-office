@@ -1,3 +1,4 @@
+import { DecisionHistory } from '../components/DecisionHistory';
 import { useState } from 'react';
 import { approvePayoutRequest, getAdminPayoutRequests, markPayoutPaid, rejectPayoutRequest } from '../api/payouts';
 import { useCollection } from '../hooks/useCollection';
@@ -35,6 +36,7 @@ export function AdminPayoutsView({ filters }: Readonly<{ filters: TableFilters }
   const { run, banner } = useActionError();
   const [filter, setFilter] = useState<Filter>('PENDING');
   const [rejecting, setRejecting] = useState<AdminPayoutRequest | null>(null);
+  const [historyOf, setHistoryOf] = useState<string | null>(null);
 
   if (loading) return <LoadingState label="Chargement des demandes de reversement…" />;
   if (error) return <ErrorState message={error} />;
@@ -82,8 +84,8 @@ export function AdminPayoutsView({ filters }: Readonly<{ filters: TableFilters }
         )}
         <div style={{ display: 'grid', gap: 6 }}>
           {visible.map((p) => (
+            <div key={p.id}>
             <div
-              key={p.id}
               style={{
                 display: 'grid',
                 gridTemplateColumns: ROW_GRID,
@@ -121,7 +123,23 @@ export function AdminPayoutsView({ filters }: Readonly<{ filters: TableFilters }
                 {(p.status === 'PAID' || p.status === 'REJECTED') && (
                   <span style={{ ...mutedText, fontSize: 12 }}>Traitée le {formatDateTime(p.decidedAt)}</span>
                 )}
+                {p.status !== 'PENDING' && (
+                  <button
+                    type="button"
+                    aria-expanded={historyOf === p.id}
+                    onClick={() => setHistoryOf(historyOf === p.id ? null : p.id)}
+                    style={{ border: 'none', background: 'transparent', color: '#164A23', cursor: 'pointer', fontSize: 12, fontWeight: 600, textDecoration: 'underline', padding: 0 }}
+                  >
+                    Historique
+                  </button>
+                )}
               </div>
+            </div>
+            {historyOf === p.id && (
+              <div style={{ padding: '8px 12px 4px' }}>
+                <DecisionHistory key={p.status} entityType="PAYOUT" entityId={p.id} />
+              </div>
+            )}
             </div>
           ))}
         </div>

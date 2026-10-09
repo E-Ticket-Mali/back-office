@@ -142,3 +142,59 @@ export async function findAdminEventByName(adminToken: string, name: string): Pr
   const events = await call<EventSummary[]>('/admin/events', { token: adminToken });
   return events.find((e) => e.name === name);
 }
+
+// --- Stock hôtelier, clients (backlog R2) ---------------------------------------------------
+
+export interface TestHotel {
+  id: string;
+  name: string;
+}
+
+export async function createHotel(adminToken: string): Promise<TestHotel> {
+  const name = `E2E Hôtel ${Date.now()}`;
+  const hotel = await call<{ id: string }>('/admin/hotels', {
+    method: 'POST',
+    token: adminToken,
+    body: JSON.stringify({ name, city: 'Bamako', location: 'ACI 2000', rating: 4, desc: 'Créé par les tests E2E' }),
+  });
+  return { id: hotel.id, name };
+}
+
+export async function getHotelRooms(adminToken: string, hotelId: string): Promise<{ id: string; quantity?: number | null }[]> {
+  const hotel = await call<{ rooms: { id: string; quantity?: number | null }[] }>(`/admin/hotels/${hotelId}`, { token: adminToken });
+  return hotel.rooms;
+}
+
+/** Inscrit un client (numéro unique) et renvoie son jeton — aucun OTP réel n'est vérifié par le backend. */
+export async function createClient(): Promise<string> {
+  const phone = `+2237${String(Date.now()).slice(-7)}`;
+  const body = (o: unknown) => ({ method: 'POST', body: JSON.stringify(o) });
+  await call('/auth/client/request-otp', body({ phone }));
+  await call('/auth/client/register', body({ phone, firstName: 'Test', lastName: 'E2E', birthDate: '1995-01-01', gender: 'MALE' }));
+  const res = await call<{ token: string }>('/auth/client/set-pin', body({ phone, pin: '4821' }));
+  return res.token;
+}
+
+/** Tente une réservation de chambre ; renvoie le statut HTTP et le message d'erreur éventuel. */
+export async function bookRoom(
+  clientToken: string,
+  stay: { hotelId: string; roomId: string; checkIn: string; checkOut: string },
+): Promise<{ status: number; message?: string }> {
+  const res = await fetch(`${API_URL}/client/bookings/checkout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${clientToken}` },
+    body: JSON.stringify({ kind: 'HOTEL', ...stay, guests: 1, paymentMethod: 'ORANGE_MONEY', momoPhone: '70000000' }),
+  });
+  if (res.ok) return { status: res.status };
+  const error = (await res.json().catch(() => null)) as { message?: string } | null;
+  return { status: res.status, message: error?.message };
+}
+
+export async function getRoomAvailability(
+  clientToken: string,
+  hotelId: string,
+  checkIn: string,
+  checkOut: string,
+): Promise<{ roomId: string; remaining: number | null }[]> {
+  return call(`/client/hotels/${hotelId}/availability?checkIn=${checkIn}&checkOut=${checkOut}`, { token: clientToken });
+}

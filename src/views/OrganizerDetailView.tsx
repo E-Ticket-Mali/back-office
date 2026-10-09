@@ -1,3 +1,4 @@
+import { DecisionHistory } from '../components/DecisionHistory';
 import { useState } from 'react';
 import {
   approveOrganizer,
@@ -259,6 +260,15 @@ export function OrganizerDetailView(props: Readonly<OrganizerDetailViewProps>) {
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="bo-card" style={{ ...cardStyle, marginTop: 18 }}>
+        <DecisionHistory
+          key={`${organizer.status}:${organizer.commissionRate ?? ''}`}
+          entityType="ORGANIZER"
+          entityId={organizer.id}
+          title="Historique des décisions"
+        />
       </div>
 
       {rejecting && (

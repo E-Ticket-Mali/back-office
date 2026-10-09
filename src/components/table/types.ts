@@ -26,7 +26,8 @@ export interface RowActionsCell {
 
 export interface EntityActionsCell {
   kind: 'entityActions';
-  onEdit: () => void;
+  /** Absent = pas d'action « Modifier » (ex. événement d'organisateur, modéré mais non modifiable). */
+  onEdit?: () => void;
   onDetail: () => void;
   onDelete: () => void;
 }
@@ -100,7 +101,7 @@ export function rowActions(onEdit: () => void, onDelete: () => void): RowActions
   return { kind: 'rowActions', onEdit, onDelete };
 }
 
-export function entityActions(onEdit: () => void, onDetail: () => void, onDelete: () => void): EntityActionsCell {
+export function entityActions(onEdit: (() => void) | undefined, onDetail: () => void, onDelete: () => void): EntityActionsCell {
   return { kind: 'entityActions', onEdit, onDetail, onDelete };
 }
 

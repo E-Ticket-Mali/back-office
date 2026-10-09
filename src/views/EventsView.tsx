@@ -149,7 +149,8 @@ export function EventsView(props: Readonly<EventsViewProps>) {
         ev.tickets.length > 0 && ev.tickets.every((t) => t.price === 0)
           ? badge('Gratuit', '#FFFFFF', '#14B53A')
           : badge(`${ev.tickets.length} type(s)`, GOLD, 'rgba(166,116,29,0.12)'),
-        entityActions(() => setEditing(ev), () => onOpenDetail(ev), () => setDeleting(ev)),
+        // Événement d'organisateur : l'admin le modère (valider, rejeter, supprimer) sans en modifier le contenu.
+        entityActions(ev.organizerName ? undefined : () => setEditing(ev), () => onOpenDetail(ev), () => setDeleting(ev)),
       ],
     };
   });
