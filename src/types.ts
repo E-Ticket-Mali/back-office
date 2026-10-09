@@ -64,6 +64,8 @@ export interface Room {
   type: RoomType;
   price: number;
   capacity: number;
+  /** Nombre de chambres de ce type dans l'hôtel ; null = non limité (chambre antérieure au stock). */
+  quantity?: number | null;
 }
 
 export interface Hotel {

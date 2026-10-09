@@ -25,6 +25,7 @@ import { LoadingState } from '../components/LoadingState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ImagePicker } from '../components/ImagePicker';
 import { CoverField } from '../components/CoverField';
+import { DecisionHistory } from '../components/DecisionHistory';
 import type { EventItem, EventTicket, OrganizerEventStatus, TicketType } from '../types';
 import { Icon } from '../components/Icon';
 import { CategoryIcon } from '../components/Icon';
@@ -325,30 +326,62 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
             <div>
               <div style={{ fontSize: 12, fontWeight: 600, color: '#6B6459', marginBottom: 4 }}>Visuel de l'événement</div>
               <div style={{ fontSize: 11.5, color: '#6B6459', marginBottom: 8 }}>Listes et cartes d'événements (format carré).</div>
-              <ImagePicker
-                clearLabel="Revenir au visuel de la catégorie"
-                imageUrl={event.logoUrl ?? event.imageUrl}
-                size={140}
-                onUpload={(file) => uploadEventImage(event.id, file).then(() => reloadEvent())}
-                onSelectPreset={(key) => setEventImagePreset(event.id, key).then(() => reloadEvent())}
-                onClear={() => clearEventImage(event.id).then(() => reloadEvent())}
-              />
+              {pricingLocked ? (
+                // Événement d'organisateur : l'admin consulte les visuels, il ne les modifie pas.
+                <img
+                  src={event.logoUrl ?? event.imageUrl ?? undefined}
+                  alt="Visuel de l'événement"
+                  style={{ width: 140, height: 140, borderRadius: 12, objectFit: 'cover', border: '1px solid #E7DED0', background: '#FAF3EB' }}
+                />
+              ) : (
+                <ImagePicker
+                  clearLabel="Revenir au visuel de la catégorie"
+                  imageUrl={event.logoUrl ?? event.imageUrl}
+                  size={140}
+                  onUpload={(file) => uploadEventImage(event.id, file).then(() => reloadEvent())}
+                  onSelectPreset={(key) => setEventImagePreset(event.id, key).then(() => reloadEvent())}
+                  onClear={() => clearEventImage(event.id).then(() => reloadEvent())}
+                />
+              )}
             </div>
             <div style={{ flex: 1, minWidth: 280 }} data-testid="admin-cover">
-              <CoverField
-                file={null}
-                currentUrl={event.coverUrl}
-                onChange={(file) => {
-                  if (file) void runCover(() => uploadEventCover(event.id, file));
-                }}
-              />
-              {event.coverUrl && (
-                <button type="button" onClick={() => void runCover(() => clearEventCover(event.id))} style={{ ...smallBtn('#A6341D'), marginTop: 8 }}>
-                  Retirer la couverture
-                </button>
+              {pricingLocked ? (
+                <>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#6B6459', marginBottom: 8 }}>Image de couverture</div>
+                  {event.coverUrl ? (
+                    <img
+                      src={event.coverUrl}
+                      alt="Image de couverture"
+                      style={{ width: '100%', maxWidth: 360, aspectRatio: '16 / 9', borderRadius: 10, objectFit: 'cover', border: '1px solid #E7DED0' }}
+                    />
+                  ) : (
+                    <div style={{ fontSize: 12.5, color: '#6B6459' }}>Aucune image de couverture fournie par l'organisateur.</div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <CoverField
+                    file={null}
+                    currentUrl={event.coverUrl}
+                    onChange={(file) => {
+                      if (file) void runCover(() => uploadEventCover(event.id, file));
+                    }}
+                  />
+                  {event.coverUrl && (
+                    <button type="button" onClick={() => void runCover(() => clearEventCover(event.id))} style={{ ...smallBtn('#A6341D'), marginTop: 8 }}>
+                      Retirer la couverture
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
+          {pricingLocked && (
+            <div data-testid="content-locked" style={{ fontSize: 12.5, color: '#6B6459', background: '#FAF3EB', borderRadius: 8, padding: '9px 12px', marginTop: 14 }}>
+              Événement géré par l'organisateur <strong>{event.organizerName}</strong> : l'administration le valide, le rejette ou le
+              supprime, sans en modifier le contenu.
+            </div>
+          )}
         </div>
 
         <div className="bo-card" style={cardStyle}>
@@ -512,6 +545,12 @@ export function EventDetailView(props: Readonly<EventDetailViewProps>) {
             </div>
           </div>
         </div>
+
+        {pricingLocked && (
+          <div className="bo-card" style={cardStyle}>
+            <DecisionHistory key={event.status} entityType="EVENT" entityId={event.id} title="Historique des décisions" />
+          </div>
+        )}
       </div>
     </div>
   );
