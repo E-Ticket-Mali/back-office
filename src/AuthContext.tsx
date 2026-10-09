@@ -37,6 +37,8 @@ interface AuthContextValue {
   completeMfa: (code: string) => Promise<void>;
   cancelMfa: () => void;
   logout: () => void;
+  /** Met à jour le nom affiché de la session après une modification du profil. */
+  renameSession: (name: string) => void;
 }
 
 const SESSION_KEY = 'eticket-back-office.session';
@@ -147,8 +149,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPendingMfa(null);
   };
 
+  const renameSession = (name: string) => {
+    setSession((current) => {
+      if (!current || current.name === name) return current;
+      const next = { ...current, name };
+      writeStoredSession(next);
+      return next;
+    });
+  };
+
   const value = useMemo(
-    () => ({ session, pendingMfa, loading, error, login, completeMfa, cancelMfa, logout }),
+    () => ({ session, pendingMfa, loading, error, login, completeMfa, cancelMfa, logout, renameSession }),
     [session, pendingMfa, loading, error],
   );
 

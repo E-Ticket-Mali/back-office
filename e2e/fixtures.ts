@@ -21,17 +21,17 @@ export function tab(page: Page, label: string) {
   return page.getByRole('tab', { name: new RegExp(`^${label}(\\s*\\d+)?$`) });
 }
 
-/** Crée une catégorie de billet via la fenêtre rapide (formulaire d'événement ou onglet Billetterie). */
+/** Crée une catégorie de billet via le panneau qui s'ouvre dans la page (formulaire d'événement ou
+ * onglet Billetterie) — une création ne passe jamais par une fenêtre modale. */
 export async function addCategory(page: Page, c: { name: string; price: string; capacity?: string }) {
-  const dialogs = page.getByRole('dialog');
-  const before = await dialogs.count();
   await page.getByRole('button', { name: /catégorie de billet|Ajouter une catégorie/ }).first().click();
-  const dialog = dialogs.nth(before);
-  await dialog.getByLabel('Nom').fill(c.name);
-  await dialog.getByLabel('Prix (FCFA)').fill(c.price);
-  if (c.capacity) await dialog.getByLabel('Quantité disponible').fill(c.capacity);
-  await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
-  await expect(dialogs).toHaveCount(before);
+  const panel = page.getByTestId('category-panel');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await panel.getByLabel('Nom').fill(c.name);
+  await panel.getByLabel('Prix (FCFA)').fill(c.price);
+  if (c.capacity) await panel.getByLabel('Quantité disponible').fill(c.capacity);
+  await panel.getByRole('button', { name: 'Créer', exact: true }).click();
+  await expect(panel).toHaveCount(0);
 }
 
 type Fixtures = {

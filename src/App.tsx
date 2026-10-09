@@ -16,7 +16,7 @@ import { AgentsView } from './views/AgentsView';
 import { AgentDetailView } from './views/AgentDetailView';
 import { OrganizersView } from './views/OrganizersView';
 import { OrganizerDetailView } from './views/OrganizerDetailView';
-import { SecurityView } from './views/SecurityView';
+import { AdminSettingsView } from './views/AdminSettingsView';
 import { OrganizerDashboardView } from './views/OrganizerDashboardView';
 import { OrganizerEventsView } from './views/OrganizerEventsView';
 import { OrganizerEventDetailView } from './views/OrganizerEventDetailView';
@@ -331,7 +331,7 @@ function App() {
               {effectiveView === 'adminPayouts' && <AdminPayoutsView filters={filters} />}
               {effectiveView === 'adminNotifications' && <AdminNotificationsView onNavigate={navigate} />}
 
-              {effectiveView === 'security' && <SecurityView />}
+              {effectiveView === 'security' && <AdminSettingsView />}
             </>
           ) : (
             <>

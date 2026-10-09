@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { TableView } from '../components/table/TableView';
 import { plain, entityActions, rating, type Column, type Row } from '../components/table/types';
+import { FormPage } from '../components/FormPage';
 import { Modal } from '../components/Modal';
 import { EntityForm, type FieldDef, type FormValues } from '../components/EntityForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -94,6 +95,7 @@ export function HotelsView({ filters, onOpenDetail }: HotelsViewProps) {
   return (
     <>
       {refreshing && <InlineRefreshHint />}
+      {editing !== 'new' && (
       <TableView
         columns={COLUMNS}
         rows={rows}
@@ -104,9 +106,10 @@ export function HotelsView({ filters, onOpenDetail }: HotelsViewProps) {
         onNextPage={() => filters.setPage(Math.min(totalPages, page + 1))}
         onCreate={() => setEditing('new')}
       />
+      )}
 
-      {editing && (
-        <Modal title={successMsg ? 'Confirmation' : editing === 'new' ? 'Nouvel hôtel' : "Modifier l'hôtel"} onClose={closeModal} size="md">
+      {editing === 'new' && (
+        <FormPage title="Nouvel hôtel" backLabel="Retour aux hôtels" onBack={closeModal} intro="L'hôtel est ajouté au catalogue ; vous ajouterez ensuite ses chambres (type, prix, nombre) depuis sa fiche.">
           {successMsg ? (
             <SuccessPanel message={successMsg} onClose={closeModal} />
           ) : (
@@ -114,6 +117,22 @@ export function HotelsView({ filters, onOpenDetail }: HotelsViewProps) {
               fields={FIELDS}
               initialValues={editing === 'new' ? EMPTY : editing}
               submitLabel={editing === 'new' ? 'Créer' : 'Enregistrer'}
+              onSubmit={submit}
+              onCancel={closeModal}
+            />
+          )}
+        </FormPage>
+      )}
+
+      {editing && editing !== 'new' && (
+        <Modal title={successMsg ? 'Confirmation' : "Modifier l'hôtel"} onClose={closeModal} size="md">
+          {successMsg ? (
+            <SuccessPanel message={successMsg} onClose={closeModal} />
+          ) : (
+            <EntityForm
+              fields={FIELDS}
+              initialValues={editing}
+              submitLabel={'Enregistrer'}
               onSubmit={submit}
               onCancel={closeModal}
             />

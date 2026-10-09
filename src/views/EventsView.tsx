@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { TableView } from '../components/table/TableView';
 import { badge, entityActions, eventName, plain, type Column, type Row } from '../components/table/types';
+import { FormPage } from '../components/FormPage';
 import { Modal } from '../components/Modal';
 import { EntityForm, type FieldDef, type FormValues } from '../components/EntityForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -213,14 +214,17 @@ export function EventsView(props: Readonly<EventsViewProps>) {
   return (
     <>
       {refreshing && <InlineRefreshHint />}
-      <Tabs
-        tabs={tabs}
-        active={statusTab}
-        onChange={(id) => {
-          setStatusTab(id);
-          filters.setPage(1);
-        }}
-      />
+      {editing !== 'new' && (
+        <Tabs
+          tabs={tabs}
+          active={statusTab}
+          onChange={(id) => {
+            setStatusTab(id);
+            filters.setPage(1);
+          }}
+        />
+      )}
+      {editing !== 'new' && (
       <TableView
         createLabel="+ Nouvel événement"
         columns={COLUMNS}
@@ -237,9 +241,10 @@ export function EventsView(props: Readonly<EventsViewProps>) {
           setEditing('new');
         }}
       />
+      )}
 
-      {editing && (
-        <Modal title={modalTitle} onClose={closeModal} size="md">
+      {editing === 'new' && (
+        <FormPage title="Nouvel événement" backLabel="Retour aux événements" onBack={closeModal} intro="Événement de la plateforme : il est publié dès sa création, sans validation. Renseignez ses catégories de billets et son identité visuelle.">
           {successMsg ? (
             <SuccessPanel message={successMsg} onClose={closeModal} />
           ) : (
@@ -260,6 +265,22 @@ export function EventsView(props: Readonly<EventsViewProps>) {
                     )
                   : undefined
               }
+            />
+          )}
+        </FormPage>
+      )}
+
+      {editing && editing !== 'new' && (
+        <Modal title={modalTitle} onClose={closeModal} size="md">
+          {successMsg ? (
+            <SuccessPanel message={successMsg} onClose={closeModal} />
+          ) : (
+            <EntityForm
+              fields={FIELDS}
+              initialValues={initialValues}
+              submitLabel="Enregistrer"
+              onSubmit={submit}
+              onCancel={closeModal}
             />
           )}
         </Modal>

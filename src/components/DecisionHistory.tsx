@@ -2,6 +2,7 @@ import { getEntityDecisions, type AuditAction, type AuditEntityType } from '../a
 import { useCollection } from '../hooks/useCollection';
 
 const ACTION_LABEL: Record<AuditAction, string> = {
+  CREATED: 'Créé',
   APPROVED: 'Approuvé',
   REJECTED: 'Rejeté',
   SUSPENDED: 'Suspendu',
@@ -12,6 +13,7 @@ const ACTION_LABEL: Record<AuditAction, string> = {
 };
 
 const ACTION_COLOR: Record<AuditAction, string> = {
+  CREATED: '#164A23',
   APPROVED: '#164A23',
   REACTIVATED: '#164A23',
   PAID: '#164A23',

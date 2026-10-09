@@ -291,6 +291,7 @@ function TicketingTab(props: Readonly<{ event: OrganizerEventItem; editable: boo
 
       {modal && (
         <TicketCategoryModal
+          inline={modal === 'new'}
           title={modal === 'new' ? 'Créer une catégorie de billet' : 'Modifier la catégorie'}
           submitLabel={modal === 'new' ? 'Créer' : 'Enregistrer'}
           initial={modal === 'new' ? undefined : { name: modal.name, price: String(modal.price), capacity: modal.capacity == null ? '' : String(modal.capacity), description: modal.description ?? '' }}

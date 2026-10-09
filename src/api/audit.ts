@@ -1,7 +1,7 @@
 import { http } from './http';
 
 export type AuditEntityType = 'ORGANIZER' | 'EVENT' | 'PAYOUT';
-export type AuditAction = 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'REACTIVATED' | 'COMMISSION_CHANGED' | 'PAID' | 'DELETED';
+export type AuditAction = 'CREATED' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'REACTIVATED' | 'COMMISSION_CHANGED' | 'PAID' | 'DELETED';
 
 /** Une décision de l'administration : qui, quoi, quand, pourquoi. */
 export interface DecisionAuditEntry {

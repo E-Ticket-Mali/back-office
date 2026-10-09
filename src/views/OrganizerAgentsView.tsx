@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { TableView } from '../components/table/TableView';
 import { plain, entityActions, type Column, type Row } from '../components/table/types';
+import { FormPage } from '../components/FormPage';
 import { Modal } from '../components/Modal';
 import { EntityForm, type FieldDef, type FormValues } from '../components/EntityForm';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -88,6 +89,7 @@ export function OrganizerAgentsView({ filters, onOpenDetail }: OrganizerAgentsVi
   return (
     <>
       {refreshing && <InlineRefreshHint />}
+      {editing !== 'new' && (
       <TableView
         columns={COLUMNS}
         rows={rows}
@@ -98,9 +100,10 @@ export function OrganizerAgentsView({ filters, onOpenDetail }: OrganizerAgentsVi
         onNextPage={() => filters.setPage(Math.min(totalPages, page + 1))}
         onCreate={() => setEditing('new')}
       />
+      )}
 
-      {editing && (
-        <Modal title={successMsg ? 'Confirmation' : editing === 'new' ? 'Nouvel agent' : "Modifier l'agent"} onClose={closeModal} size="sm">
+      {editing === 'new' && (
+        <FormPage title="Nouvel agent de contrôle" backLabel="Retour à mes agents" onBack={closeModal} intro="L'agent se connecte à l'application de contrôle avec son code. Affectez-le ensuite à vos événements dans l'onglet Affectations.">
           {successMsg ? (
             <SuccessPanel message={successMsg} onClose={closeModal} />
           ) : (
@@ -108,6 +111,22 @@ export function OrganizerAgentsView({ filters, onOpenDetail }: OrganizerAgentsVi
               fields={editing === 'new' ? CREATE_FIELDS : EDIT_FIELDS}
               initialValues={editing === 'new' ? EMPTY : editing}
               submitLabel={editing === 'new' ? 'Créer' : 'Enregistrer'}
+              onSubmit={submit}
+              onCancel={closeModal}
+            />
+          )}
+        </FormPage>
+      )}
+
+      {editing && editing !== 'new' && (
+        <Modal title={successMsg ? 'Confirmation' : "Modifier l'agent"} onClose={closeModal} size="sm">
+          {successMsg ? (
+            <SuccessPanel message={successMsg} onClose={closeModal} />
+          ) : (
+            <EntityForm
+              fields={EDIT_FIELDS}
+              initialValues={editing}
+              submitLabel={'Enregistrer'}
               onSubmit={submit}
               onCancel={closeModal}
             />

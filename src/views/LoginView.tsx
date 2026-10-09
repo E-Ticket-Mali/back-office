@@ -1,3 +1,4 @@
+import { PasswordInput } from '../components/PasswordInput';
 import { useState } from 'react';
 import { useAuth } from '../AuthContext';
 import { Icon } from '../components/Icon';
@@ -161,7 +162,7 @@ export function LoginView() {
             textAlign: 'center',
           }}
         >
-          Mali E-Ticket — Back-office
+          E-Ticket — Back-office
         </div>
         <div style={{ fontSize: 13, color: '#6B6459', marginBottom: 28, textAlign: 'center' }}>
           Connectez-vous avec votre compte.
@@ -194,13 +195,7 @@ export function LoginView() {
             <label style={labelStyle} htmlFor="login-password">
               Mot de passe
             </label>
-            <input
-              id="login-password"
-              type="password"
-              style={inputStyle}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <PasswordInput id="login-password" style={inputStyle} value={password} onChange={setPassword} autoComplete="current-password" />
           </div>
 
           {error && <div style={errorBanner}>{error}</div>}

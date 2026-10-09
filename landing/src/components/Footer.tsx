@@ -8,7 +8,7 @@ export function Footer() {
       <div className="container">
         <div className="footer-grid">
           <div className="footer-col">
-            <div className="footer-brand">Mali E-Ticket</div>
+            <div className="footer-brand">E-Ticket</div>
             <p style={{ fontSize: 13.5, color: 'rgba(250,243,235,0.7)', maxWidth: 280 }}>
               La plateforme de billetterie evenementielle et de reservation hoteliere qui
               connecte organisateurs et clients au Mali.
@@ -34,7 +34,7 @@ export function Footer() {
             <h4>Application mobile</h4>
             <ul>
               <li>
-                <span>Mali E-Ticket, l&apos;app pour reserver vos billets, bientot disponible sur Android &amp; iOS.</span>
+                <span>E-Ticket, l&apos;app pour reserver vos billets, bientot disponible sur Android &amp; iOS.</span>
               </li>
               <li>
                 <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
@@ -44,7 +44,7 @@ export function Footer() {
         </div>
 
         <div className="footer-bottom">
-          <span>&copy; {CURRENT_YEAR} Mali E-Ticket. Tous droits reserves.</span>
+          <span>&copy; {CURRENT_YEAR} E-Ticket. Tous droits reserves.</span>
           <span>Fait au Mali, pour les organisateurs d&apos;evenements.</span>
         </div>
       </div>
