@@ -134,6 +134,9 @@ const ORGANIZER_NAV: NavSection[] = [
       item('organizerEvents', 'Événements', 'event', {
       }),
       item('organizerTicketing', 'Billetterie', 'booking'),
+      item('organizerCustomers', 'Clients', 'client', {
+        matches: ['organizerCustomers', 'organizerCustomerDetail'],
+      }),
       item('organizerAgents', 'Agents de contrôle', 'agent', {
         matches: [
           'organizerAgents',

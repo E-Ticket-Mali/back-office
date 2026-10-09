@@ -24,6 +24,7 @@ import { OrganizerEventFormPage } from './views/OrganizerEventFormPage';
 import { OrganizerAgentsView } from './views/OrganizerAgentsView';
 import { OrganizerAgentDetailView } from './views/OrganizerAgentDetailView';
 import { OrganizerSettingsView } from './views/OrganizerSettingsView';
+import { OrganizerCustomerDetailView, OrganizerCustomersView } from './views/OrganizerCustomersView';
 import { OrganizerTicketingView } from './views/OrganizerTicketingView';
 import { OrganizerFinanceView } from './views/OrganizerFinanceView';
 import { OrganizerNotificationsView } from './views/OrganizerNotificationsView';
@@ -77,6 +78,8 @@ const TITLES: Record<ViewId, string> = {
   organizerFinance: 'Finances',
   organizerNotifications: 'Notifications',
   organizerSettings: 'Paramètres',
+  organizerCustomers: 'Clients',
+  organizerCustomerDetail: 'Fiche client',
   organizerAssignments: 'Agents de contrôle',
   adminTickets: 'Contrôle des billets',
   adminScans: 'Contrôle des billets',
@@ -185,6 +188,7 @@ function App() {
   const [selectedAgent, setSelectedAgent] = useState<StaffAgent | null>(null);
   const [selectedOrganizer, setSelectedOrganizer] = useState<AdminOrganizer | null>(null);
   const [selectedOrganizerAgent, setSelectedOrganizerAgent] = useState<OrganizerStaffAgent | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const filters = useTableFilters();
   const location = useLocation();
   const routerNavigate = useNavigate();
@@ -236,6 +240,10 @@ function App() {
   const openOrganizerDetail = (organizer: AdminOrganizer) => {
     setSelectedOrganizer(organizer);
     navigate('organizerAdminDetail');
+  };
+  const openCustomerDetail = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    navigate('organizerCustomerDetail');
   };
   const openOrganizerAgentDetail = (agent: OrganizerStaffAgent) => {
     setSelectedOrganizerAgent(agent);
@@ -343,7 +351,7 @@ function App() {
               {eventRoute?.kind === 'new' && <OrganizerEventFormPage />}
               {eventRoute?.kind === 'edit' && <OrganizerEventFormPage key={eventRoute.id} eventId={eventRoute.id} />}
               {eventRoute?.kind === 'detail' && (
-                <OrganizerEventDetailView key={eventRoute.id} eventId={eventRoute.id} onNavigateView={navigate} />
+                <OrganizerEventDetailView key={eventRoute.id} eventId={eventRoute.id} onNavigateView={navigate} onOpenCustomer={openCustomerDetail} />
               )}
 
               {effectiveView === 'organizerAgents' && (
@@ -354,6 +362,13 @@ function App() {
               )}
 
               {effectiveView === 'organizerSettings' && <OrganizerSettingsView />}
+              {effectiveView === 'organizerCustomers' && <OrganizerCustomersView onOpen={openCustomerDetail} />}
+              {effectiveView === 'organizerCustomerDetail' &&
+                (selectedCustomerId ? (
+                  <OrganizerCustomerDetailView key={selectedCustomerId} customerId={selectedCustomerId} onBack={() => navigate('organizerCustomers')} />
+                ) : (
+                  <OrganizerCustomersView onOpen={openCustomerDetail} />
+                ))}
               {effectiveView === 'organizerTicketing' && <OrganizerTicketingView filters={filters} section={effectiveSection} />}
               {effectiveView === 'organizerFinance' && <OrganizerFinanceView section={effectiveSection} />}
               {effectiveView === 'organizerAssignments' && <OrganizerAssignmentsView />}

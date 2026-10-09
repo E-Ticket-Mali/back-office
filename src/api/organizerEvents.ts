@@ -8,6 +8,8 @@ export interface OrganizerEventInput {
   location: string;
   city: string;
   date: string;
+  /** Fin de l'événement (facultative). */
+  endDate?: string;
   desc: string;
   icon: string;
   /** Tarifs fixés par l'organisateur dès la création. */

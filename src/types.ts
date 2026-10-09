@@ -21,6 +21,8 @@ export type ViewId =
   | 'organizerNotifications'
   | 'organizerSettings'
   | 'organizerAssignments'
+  | 'organizerCustomers'
+  | 'organizerCustomerDetail'
   | 'adminTickets'
   | 'adminScans'
   | 'adminCommissions'
@@ -44,7 +46,7 @@ export const ADMIN_VIEWS = new Set<ViewId>([
 export const ORGANIZER_VIEWS = new Set<ViewId>([
   'organizerDashboard', 'organizerEvents', 'organizerAgents', 'organizerAgentDetail',
   'organizerTicketing', 'organizerFinance', 'organizerNotifications',
-  'organizerSettings', 'organizerAssignments',
+  'organizerSettings', 'organizerAssignments', 'organizerCustomers', 'organizerCustomerDetail',
 ]);
 
 export function defaultViewForRole(role: 'ADMIN' | 'ORGANIZER'): ViewId {
@@ -227,6 +229,9 @@ export interface OrganizerEventItem {
   logoUrl: string | null;
   /** Image de couverture (page de détail) ; obligatoire pour publier. */
   coverUrl: string | null;
+  /** Fin de l'événement ; null si non précisée. */
+  endDate: string | null;
+  createdAt: string | null;
 }
 
 export interface OrganizerStaffAgent {
