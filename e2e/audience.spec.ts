@@ -35,3 +35,22 @@ test.describe('Espace organisateur : inscrits et clients', () => {
     await expect(page.getByText(event.name)).toBeVisible();
   });
 });
+
+test.describe('Modification d’un événement déjà validé', () => {
+  test('texte et couverture se modifient sans repasser en validation', async ({ page, organizer, adminToken }) => {
+    const event = await createOrganizerEvent(organizer, { approveWith: adminToken, publish: true });
+    await uiLogin(page, organizer.email, organizer.password);
+    await page.goto(`/organizer/events/${event.id}/edit`);
+
+    await expect(page.getByRole('note')).toContainText('sans nouvelle validation');
+    await page.locator('#ev-location').fill('Nouveau lieu E2E');
+    await page.locator('input[type="file"]').last().setInputFiles('e2e/assets/cover.png');
+    await page.getByRole('button', { name: /Enregistrer/ }).click();
+
+    // Retour sur la fiche : aucune erreur, l'événement est toujours en ligne avec le nouveau lieu.
+    await expect(page).toHaveURL(new RegExp(`/organizer/events/${event.id}$`));
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    await expect(page.getByTestId('event-facts')).toContainText('Nouveau lieu E2E');
+    await expect(page.getByRole('button', { name: 'Dépublier' })).toBeVisible();
+  });
+});

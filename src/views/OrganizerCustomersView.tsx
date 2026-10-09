@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getOrganizerCustomer, getOrganizerCustomers } from '../api/organizerAudience';
-import { BookingStatusBadge, CustomerCell, EmptyRow, SearchBox, matchesQuery, right, shortDate, td, th } from '../components/AudienceBlocks';
+import { RTable, BookingStatusBadge, CustomerCell, EmptyRow, SearchBox, matchesQuery, right, shortDate, td, th } from '../components/AudienceBlocks';
 import { Icon } from '../components/Icon';
 import { KpiCard } from '../components/KpiCard';
 import { LoadingState, ErrorState } from '../components/LoadingState';
@@ -58,7 +58,7 @@ export function OrganizerCustomersView({ onOpen }: Readonly<{ onOpen: (customerI
           <span style={{ ...mutedText, marginLeft: 'auto' }}>{rows.length} client(s)</span>
         </div>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
+          <RTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #E7DED0' }}>
                 <th style={th}>Client</th>
@@ -88,7 +88,7 @@ export function OrganizerCustomersView({ onOpen }: Readonly<{ onOpen: (customerI
                 </tr>
               ))}
             </tbody>
-          </table>
+          </RTable>
         </div>
       </div>
     </div>
@@ -132,7 +132,7 @@ export function OrganizerCustomerDetailView({ customerId, onBack }: Readonly<{ c
 
       <div className="bo-card" style={{ ...cardStyle, padding: 22, overflowX: 'auto' }}>
         <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: 14.5, fontWeight: 700, marginBottom: 14 }}>Historique des réservations</div>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
+        <RTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
           <thead>
             <tr style={{ borderBottom: '1px solid #E7DED0' }}>
               <th style={th}>Événement</th>
@@ -160,7 +160,7 @@ export function OrganizerCustomerDetailView({ customerId, onBack }: Readonly<{ c
               </tr>
             ))}
           </tbody>
-        </table>
+        </RTable>
       </div>
     </div>
   );

@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test:e2e": "playwright test",
-    "seed:demo": "node scripts/seed-demo.mjs"
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "seed:testorg": "node scripts/seed-test-organizer.mjs"
   },
   "dependencies": {
     "@types/qrcode": "^1.5.6",

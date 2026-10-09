@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import type { AudienceBookingStatus } from '../api/organizerAudience';
 import { StatusBadge } from './ui';
 
@@ -12,6 +13,25 @@ export const BOOKING_STATUS: Record<AudienceBookingStatus, { label: string; colo
 export function BookingStatusBadge({ status }: Readonly<{ status: AudienceBookingStatus }>) {
   const s = BOOKING_STATUS[status];
   return <StatusBadge label={s.label} color={s.color} bg={s.bg} />;
+}
+
+/**
+ * Tableau qui devient une liste de cartes sur petit écran : chaque cellule reprend le libellé de sa
+ * colonne (attribut data-label, affiché par la feuille de style).
+ */
+export function RTable(props: Readonly<React.TableHTMLAttributes<HTMLTableElement>>) {
+  const ref = useRef<HTMLTableElement>(null);
+  useLayoutEffect(() => {
+    const table = ref.current;
+    if (!table) return;
+    const labels = Array.from(table.querySelectorAll('thead th')).map((cell) => cell.textContent ?? '');
+    table.querySelectorAll('tbody tr').forEach((row) => {
+      const cells = row.querySelectorAll('td');
+      if (cells.length !== labels.length) return;
+      cells.forEach((cell, index) => cell.setAttribute('data-label', labels[index]));
+    });
+  });
+  return <table ref={ref} {...props} className="bo-rtable" />;
 }
 
 export const th: React.CSSProperties = {

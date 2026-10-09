@@ -189,6 +189,8 @@ function App() {
   const [selectedOrganizer, setSelectedOrganizer] = useState<AdminOrganizer | null>(null);
   const [selectedOrganizerAgent, setSelectedOrganizerAgent] = useState<OrganizerStaffAgent | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  // Petit écran : le menu latéral est un tiroir, fermé par défaut.
+  const [navOpen, setNavOpen] = useState(false);
   const filters = useTableFilters();
   const location = useLocation();
   const routerNavigate = useNavigate();
@@ -211,6 +213,7 @@ function App() {
   else if (effectiveView === 'organizerEvents') effectiveView = defaultViewForRole(session.role);
 
   const navigate = (nextView: ViewId, nextSection: ViewSection = null) => {
+    setNavOpen(false);
     setView(nextView);
     setSection(nextSection);
     filters.reset();
@@ -266,7 +269,8 @@ function App() {
   const hasSearch = TABLE_VIEWS.has(effectiveView);
 
   return (
-    <div className="bo-shell" style={{ background: '#FAF3EB', color: '#1F2E35' }}>
+    <div className={navOpen ? 'bo-shell bo-nav-open' : 'bo-shell'} style={{ background: '#FAF3EB', color: '#1F2E35' }}>
+      <button type="button" className="bo-nav-backdrop" aria-label="Fermer le menu" onClick={() => setNavOpen(false)} />
       <Sidebar view={effectiveView} section={effectiveSection} onNavigate={navigate} role={session.role} />
 
       <div className="bo-main">
@@ -280,6 +284,7 @@ function App() {
           adminName={session.name}
           role={session.role === 'ADMIN' ? 'Administrateur' : 'Organisateur'}
           onLogout={logout}
+          onOpenNav={() => setNavOpen(true)}
         />
 
         <div className="bo-content">

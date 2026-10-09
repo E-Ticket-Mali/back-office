@@ -19,6 +19,7 @@ import { useCollection } from '../hooks/useCollection';
 import { Icon, CategoryIcon } from '../components/Icon';
 import { ImagePicker } from '../components/ImagePicker';
 import { KpiCard } from '../components/KpiCard';
+import { RTable } from '../components/AudienceBlocks';
 import { LoadingState, ErrorState } from '../components/LoadingState';
 import { Modal } from '../components/Modal';
 import { PublishDialog } from '../components/PublishDialog';
@@ -318,7 +319,7 @@ function SalesTab({ event }: Readonly<{ event: OrganizerEventItem }>) {
   return (
     <div className="bo-card" style={{ ...cardStyle, padding: 22, overflowX: 'auto' }}>
       <div style={cardTitle}>Ventes de billets</div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+      <RTable style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
         <thead>
           <tr style={{ borderBottom: '1px solid #E7DED0' }}>
             <th style={{ ...head, textAlign: 'left' }}>Catégorie</th>
@@ -349,7 +350,7 @@ function SalesTab({ event }: Readonly<{ event: OrganizerEventItem }>) {
             <td style={{ ...cell, fontWeight: 800 }}>{formatFcfa(totalRevenue(event.tickets))}</td>
           </tr>
         </tbody>
-      </table>
+      </RTable>
       <div style={{ ...mutedText, fontSize: 12, marginTop: 10 }}>Les ventes brutes sont calculées au prix payé par chaque acheteur, même si le tarif a changé depuis.</div>
     </div>
   );
