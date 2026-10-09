@@ -56,11 +56,13 @@ interface FormState {
   description: string;
   date: string;
   time: string;
+  endDate: string;
+  endTime: string;
   city: string;
   location: string;
 }
 
-const EMPTY: FormState = { name: '', category: 'CONCERT', description: '', date: '', time: '', city: '', location: '' };
+const EMPTY: FormState = { name: '', category: 'CONCERT', description: '', date: '', time: '', endDate: '', endTime: '', city: '', location: '' };
 
 function fromEvent(ev: OrganizerEventItem): FormState {
   return {
@@ -69,6 +71,8 @@ function fromEvent(ev: OrganizerEventItem): FormState {
     description: ev.desc ?? '',
     date: ev.date.slice(0, 10),
     time: ev.date.slice(11, 16),
+    endDate: ev.endDate ? ev.endDate.slice(0, 10) : '',
+    endTime: ev.endDate ? ev.endDate.slice(11, 16) : '',
     city: ev.city,
     location: ev.location,
   };
@@ -126,6 +130,11 @@ function EditorBody(props: Readonly<{ existing?: OrganizerEventItem }>) {
 
   const save = async () => {
     setError(null);
+    const endIso = form.endDate ? toIso(form.endDate, form.endTime || '23:59') : undefined;
+    if (endIso && form.date && form.time && endIso <= toIso(form.date, form.time)) {
+      setError("La fin de l'événement doit être postérieure à son début.");
+      return;
+    }
     setBusy(true);
     try {
       const base = {
@@ -134,6 +143,7 @@ function EditorBody(props: Readonly<{ existing?: OrganizerEventItem }>) {
         location: form.location.trim(),
         city: form.city.trim(),
         date: toIso(form.date, form.time),
+        endDate: endIso,
         desc: form.description.trim(),
       };
       const warnings: string[] = [];
@@ -248,6 +258,18 @@ function EditorBody(props: Readonly<{ existing?: OrganizerEventItem }>) {
               Heure
             </label>
             <input id="ev-time" style={inputStyle} type="time" required value={form.time} onChange={(e) => set('time', e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="ev-end-date">
+              Date de fin (facultative)
+            </label>
+            <input id="ev-end-date" style={inputStyle} type="date" min={form.date || undefined} value={form.endDate} onChange={(e) => set('endDate', e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="ev-end-time">
+              Heure de fin
+            </label>
+            <input id="ev-end-time" style={inputStyle} type="time" value={form.endTime} onChange={(e) => set('endTime', e.target.value)} />
           </div>
           <div>
             <label style={labelStyle} htmlFor="ev-city">

@@ -198,3 +198,13 @@ export async function getRoomAvailability(
 ): Promise<{ roomId: string; remaining: number | null }[]> {
   return call(`/client/hotels/${hotelId}/availability?checkIn=${checkIn}&checkOut=${checkOut}`, { token: clientToken });
 }
+
+/** Un client achète `qty` billets de la première catégorie d'un événement publié. */
+export async function bookEvent(clientToken: string, organizer: TestOrganizer, eventId: string, qty = 2): Promise<void> {
+  const event = await call<{ tickets: { id: string }[] }>(`/organizer/events/${eventId}`, { token: organizer.token });
+  await call('/client/bookings/checkout', {
+    method: 'POST',
+    token: clientToken,
+    body: JSON.stringify({ kind: 'EVENT', eventId, eventTicketTypeId: event.tickets[0].id, qty, paymentMethod: 'ORANGE_MONEY', momoPhone: '70000000' }),
+  });
+}

@@ -12,6 +12,8 @@ import {
   updateOrganizerTicketType,
   uploadOrganizerTicketTypeImage,
 } from '../api/organizerEvents';
+import { getEventAudience } from '../api/organizerAudience';
+import { AttendeesTab, EventOverview } from './OrganizerEventAudience';
 import { useActionError } from '../hooks/useActionError';
 import { useCollection } from '../hooks/useCollection';
 import { Icon, CategoryIcon } from '../components/Icon';
@@ -36,9 +38,10 @@ const STATUS_COLOR: Record<OrganizerEventStatus, [string, string]> = {
   REJECTED: ['#CE1126', 'rgba(206,17,38,0.12)'],
 };
 
-type DetailTab = 'overview' | 'ticketing' | 'sales' | 'control' | 'finances';
+type DetailTab = 'overview' | 'attendees' | 'ticketing' | 'sales' | 'control' | 'finances';
 const TABS: { id: DetailTab; label: string }[] = [
   { id: 'overview', label: "Vue d'ensemble" },
+  { id: 'attendees', label: 'Inscrits' },
   { id: 'ticketing', label: 'Billetterie' },
   { id: 'sales', label: 'Ventes de billets' },
   { id: 'control', label: 'Contrôle des billets' },
@@ -53,14 +56,18 @@ const totalRevenue = (tickets: EventTicket[]) => tickets.reduce((n, t) => n + t.
 type OrganizerEventDetailViewProps = Readonly<{
   eventId: string;
   onNavigateView: (view: ViewId) => void;
+  onOpenCustomer: (customerId: string) => void;
 }>;
 
 /** Page d'un événement : en-tête (statut, actions) puis onglets Vue d'ensemble, Billetterie, Ventes, Contrôle, Finances. */
-export function OrganizerEventDetailView({ eventId, onNavigateView }: OrganizerEventDetailViewProps) {
+export function OrganizerEventDetailView({ eventId, onNavigateView, onOpenCustomer }: OrganizerEventDetailViewProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
   const { data: rows, loading, error, reload } = useCollection(() => getOrganizerEvent(eventId).then((e) => [e]));
+  // Les inscrits alimentent la vue d'ensemble (chiffres, dernières inscriptions) et l'onglet Inscrits.
+  const { data: audienceRows } = useCollection(() => getEventAudience(eventId).then((a) => [a]));
+  const audience = audienceRows[0] ?? null;
   const [publishMode, setPublishMode] = useState<'publish' | 'unpublish' | null>(null);
   const { run, banner } = useActionError();
 
@@ -77,6 +84,8 @@ export function OrganizerEventDetailView({ eventId, onNavigateView }: OrganizerE
   const canSubmit = (event.status === 'DRAFT' || event.status === 'REJECTED') && event.tickets.some((t) => t.active);
   const missingCover = event.coverUrl == null;
   const [statusColor, statusBg] = STATUS_COLOR[event.status];
+  const tabs = TABS.map((t) => (t.id === 'attendees' && audience ? { ...t, count: audience.attendees.length } : t));
+  const openTab = (id: DetailTab) => setParams(id === 'overview' ? {} : { tab: id }, { replace: true, state: location.state });
 
   return (
     <div className="bo-page">
@@ -149,9 +158,12 @@ export function OrganizerEventDetailView({ eventId, onNavigateView }: OrganizerE
         </div>
       )}
 
-      <Tabs tabs={TABS} active={tab} onChange={(id) => setParams(id === 'overview' ? {} : { tab: id }, { replace: true, state: location.state })} />
+      <Tabs tabs={tabs} active={tab} onChange={(id) => setParams(id === 'overview' ? {} : { tab: id }, { replace: true, state: location.state })} />
 
-      {tab === 'overview' && <OverviewTab event={event} />}
+      {tab === 'overview' && (
+        <EventOverview event={event} summary={audience?.summary ?? null} recent={(audience?.attendees ?? []).slice(0, 5)} onOpenAttendees={() => openTab('attendees')} />
+      )}
+      {tab === 'attendees' && <AttendeesTab attendees={audience?.attendees ?? []} onOpenCustomer={onOpenCustomer} onExport={() => run(() => exportManifest(event.id))} />}
       {tab === 'ticketing' && <TicketingTab event={event} editable={editable} reload={reload} run={run} />}
       {tab === 'sales' && <SalesTab event={event} />}
       {tab === 'control' && <ControlTab event={event} run={run} onOpenAssignments={() => onNavigateView('organizerAssignments')} />}
@@ -170,52 +182,6 @@ export function OrganizerEventDetailView({ eventId, onNavigateView }: OrganizerE
           }}
         />
       )}
-    </div>
-  );
-}
-
-function OverviewTab({ event }: Readonly<{ event: OrganizerEventItem }>) {
-  const sold = totalSold(event.tickets);
-  const unlimited = event.tickets.some((t) => t.active && t.capacity == null);
-  const available = event.tickets.filter((t) => t.active).reduce((n, t) => n + (t.remaining ?? 0), 0);
-  return (
-    <div style={{ display: 'grid', gap: 18 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
-        <KpiCard label="Billets vendus" value={sold} sub="" color={GREEN} />
-        <KpiCard label="Billets disponibles" value={unlimited ? 'Illimité' : available} sub="" color={GOLD} />
-        <KpiCard label="Revenus" value={formatFcfa(totalRevenue(event.tickets))} sub="ventes brutes" color="#1D5C8A" />
-      </div>
-      <div className="bo-card" style={{ ...cardStyle, padding: 22 }}>
-        <div style={cardTitle}>Informations principales</div>
-        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-          <div style={{ width: 'min(100%,360px)' }}>
-            <div style={{ aspectRatio: '16 / 9', borderRadius: 10, border: '1.5px solid #E7DED0', background: '#FAF3EB', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#6B6459' }}>
-              {event.coverUrl ? <img src={event.coverUrl} alt="Couverture" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'Aucune couverture'}
-            </div>
-            <div style={{ ...mutedText, fontSize: 11.5, marginTop: 4 }}>Image de couverture (page de détail)</div>
-          </div>
-          <div style={{ width: 120 }}>
-            <div style={{ aspectRatio: '1 / 1', borderRadius: 12, border: '1.5px solid #E7DED0', background: '#FAF3EB', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {event.logoUrl && <img src={event.logoUrl} alt="Visuel" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 10 }} />}
-            </div>
-            <div style={{ ...mutedText, fontSize: 11.5, marginTop: 4 }}>Visuel (listes)</div>
-          </div>
-          <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 16px', fontSize: 13.5, alignContent: 'start' }}>
-            <dt style={mutedText}>Date</dt>
-            <dd style={{ margin: 0 }}>{new Date(event.date).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })}</dd>
-            <dt style={mutedText}>Ville</dt>
-            <dd style={{ margin: 0 }}>{event.city}</dd>
-            <dt style={mutedText}>Lieu</dt>
-            <dd style={{ margin: 0 }}>{event.location}</dd>
-            {event.desc && (
-              <>
-                <dt style={mutedText}>Description</dt>
-                <dd style={{ margin: 0 }}>{event.desc}</dd>
-              </>
-            )}
-          </dl>
-        </div>
-      </div>
     </div>
   );
 }
