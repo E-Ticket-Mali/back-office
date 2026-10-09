@@ -1,4 +1,4 @@
-# back-office — Mali E-Ticket
+# back-office — E-Ticket
 
 Back-office web (React + Vite + TypeScript) pour administrer le backend Spring
 Boot du dépôt : hôtels/chambres, événements/billetterie, réservations,

@@ -8,7 +8,7 @@ export function Hero() {
           <span className="eyebrow">Plateforme billetterie &amp; hotellerie</span>
           <h1>Vendez vos billets d&apos;evenements en ligne, sans vous soucier de la technique.</h1>
           <p className="lead">
-            Mali E-Ticket donne aux organisateurs un espace pour creer leurs evenements,
+            E-Ticket donne aux organisateurs un espace pour creer leurs evenements,
             mettre en vente plusieurs types de billets, suivre les ventes en temps reel et
             recevoir leurs reversements -- pendant que vos clients reservent depuis
             l&apos;application mobile.

@@ -5,6 +5,20 @@ import type { AdminOrganizer, OrganizerStatus } from '../types';
 export const getOrganizers = (status?: OrganizerStatus) =>
   http.get<AdminOrganizer[]>(`/admin/organizers${status ? `?status=${status}` : ''}`);
 export const getOrganizer = (id: string) => http.get<AdminOrganizer>(`/admin/organizers/${id}`);
+
+export interface OrganizerCreateInput {
+  name: string;
+  email: string;
+  /** Mot de passe initial (8 caractères au moins), à transmettre à l'organisateur. */
+  password: string;
+  phone: string;
+  nif?: string;
+  rccm?: string;
+  /** Vide = taux par défaut de la plateforme. */
+  commissionRate?: number;
+}
+/** Création par l'ADMIN : le compte est directement approuvé, sans pièce justificative. */
+export const createOrganizer = (data: OrganizerCreateInput) => http.post<AdminOrganizer>('/admin/organizers', data);
 export const approveOrganizer = (id: string) => http.post<AdminOrganizer>(`/admin/organizers/${id}/approve`);
 export const rejectOrganizer = (id: string, reason: string) =>
   http.post<AdminOrganizer>(`/admin/organizers/${id}/reject`, { reason });

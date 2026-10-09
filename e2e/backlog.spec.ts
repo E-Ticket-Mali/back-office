@@ -120,3 +120,64 @@ test.describe('Session expirée', () => {
     await expect(page.getByText(/Erreur 403/)).toHaveCount(0);
   });
 });
+
+test.describe('Créations en page dédiée', () => {
+  test('l’admin crée un organisateur depuis une page, et celui-ci peut se connecter', async ({ page }) => {
+    const stamp = `${Date.now()}`;
+    const email = `e2e.cree.${stamp}@example.test`;
+    const password = `Init-${stamp}`;
+    await uiLogin(page, ADMIN.email, ADMIN.password);
+    await navTo(page, 'organizersAdmin');
+    await page.getByRole('button', { name: '+ Nouvel organisateur' }).click();
+
+    // Une page, pas une fenêtre modale.
+    await expect(page.getByTestId('form-page')).toContainText('Nouvel organisateur');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+
+    await page.locator('#field-name').fill(`E2E Créé ${stamp}`);
+    await page.locator('#field-email').fill(email);
+    await page.locator('#field-phone').fill(`7${stamp.slice(-7)}`);
+    await page.locator('#field-password').fill('court');
+    await page.getByRole('button', { name: "Créer l'organisateur" }).click();
+    await expect(page.getByRole('alert')).toContainText('au moins 8 caractères');
+
+    await page.locator('#field-password').fill(password);
+    await page.getByRole('button', { name: "Créer l'organisateur" }).click();
+    await expect(page.getByTestId('form-page')).toContainText('créé et approuvé');
+
+    // Le compte est utilisable tout de suite : connexion dans un contexte vierge.
+    const context = await page.context().browser()!.newContext();
+    const fresh = await context.newPage();
+    await uiLogin(fresh, email, password);
+    await expect(fresh.getByTestId('nav-organizerEvents')).toBeVisible();
+    await context.close();
+  });
+
+  test('créer un hôtel ou un agent ouvre une page, pas une fenêtre', async ({ page }) => {
+    await uiLogin(page, ADMIN.email, ADMIN.password);
+    for (const [view, title] of [['hotels', 'Nouvel hôtel'], ['agents', 'Nouvel agent de contrôle']] as const) {
+      await navTo(page, view);
+      await page.getByRole('button', { name: '+ Nouveau' }).click();
+      await expect(page.getByTestId('form-page')).toContainText(title);
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Annuler' }).click();
+      await expect(page.getByTestId('form-page')).toHaveCount(0);
+    }
+  });
+});
+
+test.describe('Mot de passe', () => {
+  test('l’œil affiche puis masque le mot de passe saisi', async ({ page }) => {
+    await page.goto('/');
+    const field = page.locator('#login-password');
+    await field.fill('secret-visible');
+    await expect(field).toHaveAttribute('type', 'password');
+
+    await page.getByRole('button', { name: 'Afficher le mot de passe' }).click();
+    await expect(field).toHaveAttribute('type', 'text');
+    await expect(field).toHaveValue('secret-visible');
+
+    await page.getByRole('button', { name: 'Masquer le mot de passe' }).click();
+    await expect(field).toHaveAttribute('type', 'password');
+  });
+});

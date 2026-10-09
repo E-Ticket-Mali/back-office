@@ -7,7 +7,7 @@ const STEPS: Step[] = [
   {
     title: 'Creez votre compte organisateur',
     description:
-      "Inscrivez-vous en tant qu'organisateur depuis le back-office Mali E-Ticket et renseignez les informations de votre structure.",
+      "Inscrivez-vous en tant qu'organisateur depuis le back-office E-Ticket et renseignez les informations de votre structure.",
   },
   {
     title: 'Publiez votre evenement',
@@ -17,7 +17,7 @@ const STEPS: Step[] = [
   {
     title: 'Vendez vos billets',
     description:
-      "Vos billets deviennent disponibles a l'achat dans l'application mobile Mali E-Ticket, accessible a tous vos futurs spectateurs.",
+      "Vos billets deviennent disponibles a l'achat dans l'application mobile E-Ticket, accessible a tous vos futurs spectateurs.",
   },
   {
     title: 'Suivez vos ventes et vos reversements',

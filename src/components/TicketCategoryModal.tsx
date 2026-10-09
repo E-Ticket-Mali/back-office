@@ -16,6 +16,8 @@ type TicketCategoryModalProps = Readonly<{
   onClose: () => void;
   /** Information affichée au-dessus du formulaire (ex. effet d'une modification après vente). */
   notice?: string;
+  /** Création : le formulaire s'ouvre en panneau dans la page (convention « pas de modale pour créer »). */
+  inline?: boolean;
 }>;
 
 const inputStyle: React.CSSProperties = {
@@ -35,7 +37,7 @@ const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: 
  * Volontairement sans balise <form> : la fenêtre s'ouvre depuis le formulaire d'un événement et ne
  * doit pas le soumettre.
  */
-export function TicketCategoryModal({ title, submitLabel, initial = EMPTY_CATEGORY, onSubmit, onClose, notice }: TicketCategoryModalProps) {
+export function TicketCategoryModal({ title, submitLabel, initial = EMPTY_CATEGORY, onSubmit, onClose, notice, inline = false }: TicketCategoryModalProps) {
   const [values, setValues] = useState<CategoryValues>(initial);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -62,8 +64,7 @@ export function TicketCategoryModal({ title, submitLabel, initial = EMPTY_CATEGO
     }
   };
 
-  return createPortal(
-    <Modal title={title} onClose={onClose} size="sm">
+  const body = (
       <div style={{ display: 'grid', gap: 14 }} onKeyDown={onEnter}>
         {notice && (
           <div style={{ fontSize: 12.5, color: '#6B6459', background: '#FAF3EB', borderRadius: 8, padding: '10px 12px' }}>{notice}</div>
@@ -160,6 +161,25 @@ export function TicketCategoryModal({ title, submitLabel, initial = EMPTY_CATEGO
           </button>
         </div>
       </div>
+  );
+
+  if (inline) {
+    return (
+      <section
+        role="group"
+        aria-label={title}
+        data-testid="category-panel"
+        style={{ marginTop: 12, padding: 18, border: '1.5px solid #164A23', borderRadius: 12, background: '#FFFFFF' }}
+      >
+        <div style={{ fontFamily: "'Poppins',sans-serif", fontSize: 14.5, fontWeight: 700, color: '#1F2E35', marginBottom: 14 }}>{title}</div>
+        {body}
+      </section>
+    );
+  }
+
+  return createPortal(
+    <Modal title={title} onClose={onClose} size="sm">
+      {body}
     </Modal>,
     document.body,
   );

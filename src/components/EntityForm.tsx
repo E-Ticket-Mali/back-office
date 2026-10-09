@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { PasswordInput } from './PasswordInput';
 
-export type FieldType = 'text' | 'number' | 'tel' | 'select' | 'checkbox' | 'datetime-local';
+export type FieldType = 'text' | 'number' | 'tel' | 'select' | 'checkbox' | 'datetime-local' | 'password';
 
 export type FormValues = Record<string, string | number | boolean>;
 
@@ -120,6 +121,18 @@ function renderControl(field: FieldDef, values: FormValues, setField: SetField, 
     );
   }
 
+  if (field.type === 'password') {
+    return (
+      <PasswordInput
+        id={`field-${field.key}`}
+        style={inputStyle}
+        required={!field.optional}
+        value={String(values[field.key] ?? '')}
+        onChange={(value) => setField(field, value)}
+        autoComplete="new-password"
+      />
+    );
+  }
   if (field.type === 'tel') {
     return (
       <input

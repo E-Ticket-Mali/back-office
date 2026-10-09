@@ -156,16 +156,17 @@ test.describe('Espace ORGANIZER', () => {
     await page.locator('#ev-date').fill('2027-05-01');
     await page.locator('#ev-time').fill('20:00');
 
-    // Sans prix : refus clair dans la fenêtre, la catégorie n'est pas ajoutée.
+    // Sans prix : refus clair dans le panneau (dans la page, pas une fenêtre), la catégorie n'est pas ajoutée.
     await page.getByRole('button', { name: /catégorie de billet/ }).first().click();
-    const dialog = page.getByRole('dialog');
-    await dialog.getByLabel('Nom').fill('Standard');
-    await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
-    await expect(dialog.getByRole('alert')).toContainText('Prix invalide');
-    await dialog.getByLabel('Prix (FCFA)').fill('5000');
-    await dialog.getByLabel('Quantité disponible').fill('300');
-    await dialog.getByRole('button', { name: 'Créer', exact: true }).click();
-    await expect(dialog).toHaveCount(0);
+    const panel = page.getByTestId('category-panel');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await panel.getByLabel('Nom').fill('Standard');
+    await panel.getByRole('button', { name: 'Créer', exact: true }).click();
+    await expect(panel.getByRole('alert')).toContainText('Prix invalide');
+    await panel.getByLabel('Prix (FCFA)').fill('5000');
+    await panel.getByLabel('Quantité disponible').fill('300');
+    await panel.getByRole('button', { name: 'Créer', exact: true }).click();
+    await expect(panel).toHaveCount(0);
 
     // La catégorie créée est ajoutée d'office au formulaire ; une seconde, de nom libre.
     await expect(page.getByTestId('ticket-categories-field')).toContainText('Standard');

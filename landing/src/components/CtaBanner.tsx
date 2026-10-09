@@ -7,7 +7,7 @@ export function CtaBanner() {
         <div className="cta-banner">
           <h2>Pret a vendre vos billets en ligne ?</h2>
           <p>
-            Rejoignez les organisateurs qui utilisent deja Mali E-Ticket pour gerer leurs
+            Rejoignez les organisateurs qui utilisent deja E-Ticket pour gerer leurs
             evenements, leurs billets et leurs reversements depuis un seul endroit.
           </p>
           <div className="cta-banner-actions">

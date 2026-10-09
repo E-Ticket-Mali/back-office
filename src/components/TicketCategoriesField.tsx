@@ -101,6 +101,7 @@ export function TicketCategoriesField({ value, onChange }: TicketCategoriesField
 
       {editing && (
         <TicketCategoryModal
+          inline={editing === 'new'}
           title={editing === 'new' ? 'Créer une catégorie de billet' : 'Modifier la catégorie'}
           submitLabel={editing === 'new' ? 'Créer' : 'Enregistrer'}
           initial={editing === 'new' ? undefined : { name: editing.name, price: editing.price, capacity: editing.capacity, description: editing.description }}
