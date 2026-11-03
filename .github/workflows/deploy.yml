@@ -1,0 +1,118 @@
+# CI/CD du back-office et de la landing.
+#   pull request → lint + build (back-office et landing)
+#   push sur main → lint + build → images nginx sur GHCR (back-office, landing ; tags SHA + latest)
+#                 → `helm upgrade` sur le serveur k3s via SSH (retour arrière automatique)
+#
+# Configuration GitHub (créée par docs/deployment/ci/setup-github.sh, voir le guide §7) :
+#   variables du dépôt   DEPLOY_HOST, DEPLOY_USER, DEPLOY_PORT,
+#                        HELM_RELEASE, HELM_NAMESPACE, HELM_CHART_PATH
+#   secrets de l'environnement `production`   DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS
+# Tant que DEPLOY_HOST n'est pas défini, le job de déploiement est ignoré.
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app_dir: [".", "landing"]
+    defaults:
+      run:
+        working-directory: ${{ matrix.app_dir }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ matrix.app_dir }}/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  image:
+    needs: check
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - name: back-office
+            app_dir: .
+          - name: landing
+            app_dir: landing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/web.Dockerfile
+          build-args: APP_DIR=${{ matrix.app_dir }}
+          push: true
+          tags: |
+            ghcr.io/e-ticket-mali/${{ matrix.name }}:${{ github.sha }}
+            ghcr.io/e-ticket-mali/${{ matrix.name }}:latest
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  deploy:
+    needs: image
+    if: github.event_name != 'pull_request' && vars.DEPLOY_HOST != ''
+    runs-on: ubuntu-latest
+    environment: production
+    # Un seul déploiement à la fois sur le serveur, tous dépôts confondus.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ vars.DEPLOY_USER || 'deploy' }}
+      DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+      HELM_RELEASE: ${{ vars.HELM_RELEASE || 'eticket' }}
+      HELM_NAMESPACE: ${{ vars.HELM_NAMESPACE || 'eticket' }}
+      HELM_CHART_PATH: ${{ vars.HELM_CHART_PATH || '/opt/e-ticket/helm/e-ticket' }}
+    steps:
+      - name: Configurer SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: helm upgrade
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "helm upgrade $HELM_RELEASE $HELM_CHART_PATH -n $HELM_NAMESPACE \
+               --reset-then-reuse-values \
+               --set backOffice.image.tag=$GITHUB_SHA \
+               --set landing.image.tag=$GITHUB_SHA \
+               --atomic --wait --timeout 4m"
+
+      - name: État après déploiement
+        if: always()
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "helm history $HELM_RELEASE -n $HELM_NAMESPACE --max 3; kubectl -n $HELM_NAMESPACE get pods -l 'app in ($HELM_RELEASE-back-office,$HELM_RELEASE-landing)'"
