@@ -4,6 +4,10 @@
 // Idempotent : si le compte existe déjà, seuls les éléments manquants sont recréés.
 // Ne jamais lancer contre le backend déployé.
 
+import fs from 'node:fs';
+import path from 'node:path';
+
+const COVER = path.resolve('e2e/assets/cover.png');
 const API = process.env.E2E_API_URL ?? 'http://127.0.0.1:5000/api/v1';
 
 if (!/localhost|127\.0\.0\.1/.test(API) && !process.env.ALLOW_REMOTE_SEED) {
@@ -90,11 +94,24 @@ async function ensureEvents(token, adminToken) {
       });
       await call(`/organizer/events/${event.id}/ticket-types`, { method: 'POST', token, body: { type: 'STANDARD', price: 5000, capacity: 200 } });
       await call(`/organizer/events/${event.id}/ticket-types`, { method: 'POST', token, body: { type: 'VIP', price: 15000, capacity: 40 } });
-      if (spec.target !== 'DRAFT') await call(`/organizer/events/${event.id}/submit`, { method: 'POST', token });
-      if (spec.target === 'APPROVED' || spec.target === 'PUBLISHED') await call(`/admin/events/${event.id}/approve`, { method: 'POST', token: adminToken });
-      if (spec.target === 'PUBLISHED') await call(`/organizer/events/${event.id}/publish`, { method: 'POST', token });
       console.log(`✓ ${spec.name}`);
     }
+    // La couverture est requise pour publier ; puis on avance jusqu'au statut voulu (reprend une exécution interrompue).
+    if (!event.coverUrl && event.status !== 'PENDING_APPROVAL') {
+      const form = new FormData();
+      form.append('file', new Blob([fs.readFileSync(COVER)], { type: 'image/png' }), 'cover.png');
+      event = await call(`/organizer/events/${event.id}/cover`, { method: 'POST', token, body: form });
+    }
+    let status = event.status;
+    if (status === 'DRAFT' && spec.target !== 'DRAFT') {
+      await call(`/organizer/events/${event.id}/submit`, { method: 'POST', token });
+      status = 'PENDING_APPROVAL';
+    }
+    if (status === 'PENDING_APPROVAL' && (spec.target === 'APPROVED' || spec.target === 'PUBLISHED')) {
+      await call(`/admin/events/${event.id}/approve`, { method: 'POST', token: adminToken });
+      status = 'APPROVED';
+    }
+    if (status === 'APPROVED' && spec.target === 'PUBLISHED') await call(`/organizer/events/${event.id}/publish`, { method: 'POST', token });
     if (spec.target === 'PUBLISHED') published.push(event);
   }
   return published;
