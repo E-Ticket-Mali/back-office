@@ -1,5 +1,5 @@
 import { getClient } from '../api/clients';
-import { getBookings } from '../api/bookings';
+import { searchBookings } from '../api/bookings';
 import { useCollection } from '../hooks/useCollection';
 import { LoadingState } from '../components/LoadingState';
 import type { AdminClient, BookingStatus } from '../types';
@@ -37,11 +37,13 @@ const STATUS_COLORS: Record<BookingStatus, [string, string]> = {
 export function ClientDetailView(props: Readonly<ClientDetailViewProps>) {
   const { client: initial, onBack } = props;
   const { data: clientRows, loading: clientLoading } = useCollection(() => getClient(initial.id).then((c) => [c]));
-  const { data: bookings, loading: bookingsLoading } = useCollection(getBookings);
+  // Les réservations de ce client uniquement (les 50 plus récentes), filtrées par le serveur.
+  const { data: clientBookings, loading: bookingsLoading } = useCollection(() =>
+    searchBookings({ userId: initial.id, size: 50 }).then((page) => page.items),
+  );
 
   if (clientLoading || bookingsLoading || clientRows.length === 0) return <LoadingState label="Chargement du client…" />;
   const client = clientRows[0];
-  const clientBookings = bookings.filter((b) => b.clientPhone === client.phone);
 
   return (
     <div className="bo-page">

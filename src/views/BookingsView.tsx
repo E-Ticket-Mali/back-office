@@ -1,9 +1,8 @@
 import { TableView } from '../components/table/TableView';
 import { plain, badge, detailOnlyActions, type Column, type Row } from '../components/table/types';
 import { LoadingState, ErrorState, InlineRefreshHint } from '../components/LoadingState';
-import { getBookings } from '../api/bookings';
-import { filterRows } from '../utils/filterRows';
-import { useCollection } from '../hooks/useCollection';
+import { searchBookings } from '../api/bookings';
+import { usePagedList } from '../hooks/usePagedList';
 import type { TableFilters } from '../hooks/useTableFilters';
 import type { AdminBooking, BookingStatus } from '../types';
 
@@ -13,7 +12,7 @@ const STATUS_COLORS: Record<BookingStatus, [string, string]> = {
   CANCELLED: ['#CE1126', 'rgba(206,17,38,0.12)'],
 };
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 20;
 
 const COLUMNS: Column[] = [
   { label: 'Client', width: 'minmax(140px,1fr)' },
@@ -32,21 +31,25 @@ interface BookingsViewProps {
   onOpenDetail: (booking: AdminBooking) => void;
 }
 
+/** Libellé affiché dans le filtre -> statut envoyé au serveur. */
+const STATUS_BY_LABEL = Object.fromEntries(
+  (Object.entries(STATUS_LABEL) as [BookingStatus, string][]).map(([status, label]) => [label, status]),
+) as Record<string, BookingStatus>;
+
 export function BookingsView({ filters, onOpenDetail }: BookingsViewProps) {
-  const { data: bookings, loading, refreshing, error } = useCollection(getBookings);
+  // Page, filtre et recherche sont traités par le serveur : seule la page affichée est téléchargée.
+  const status = STATUS_BY_LABEL[filters.statusFilter];
+  const { items, hasNext, loading, refreshing, error } = usePagedList(
+    ({ page, size, q, filters: f }) => searchBookings({ page, size, q, status: f.status }),
+    { page: filters.page, size: PAGE_SIZE, search: filters.search, filters: { status } },
+  );
 
   if (loading) return <LoadingState label="Chargement des réservations…" />;
   if (error) return <ErrorState message={error} />;
 
-  const withStatut = bookings.map((b) => ({ ...b, statut: STATUS_LABEL[b.status] }));
-  const filtered = filterRows(withStatut, ['clientName', 'clientPhone', 'hotelName', 'itemLabel'], filters.search, '', filters.statusFilter);
+  const page = filters.page;
 
-  const totalRows = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
-  const page = Math.min(filters.page, totalPages);
-  const pageSlice = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const rows: Row[] = pageSlice.map((b) => {
+  const rows: Row[] = items.map((b) => {
     const [color, bg] = STATUS_COLORS[b.status];
     return {
       key: b.id,
@@ -68,11 +71,13 @@ export function BookingsView({ filters, onOpenDetail }: BookingsViewProps) {
       <TableView
         columns={COLUMNS}
         rows={rows}
-        totalRows={totalRows}
+        totalRows={rows.length}
+        totalLabel={`${rows.length} réservation${rows.length > 1 ? 's' : ''} sur cette page`}
         page={page}
-        totalPages={totalPages}
+        totalPages={page}
+        hasNext={hasNext}
         onPrevPage={() => filters.setPage(Math.max(1, page - 1))}
-        onNextPage={() => filters.setPage(Math.min(totalPages, page + 1))}
+        onNextPage={() => filters.setPage(page + 1)}
         statusOptions={Object.values(STATUS_LABEL)}
         statusFilter={filters.statusFilter}
         onStatusFilter={filters.onStatusFilter}
