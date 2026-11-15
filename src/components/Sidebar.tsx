@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react';
 
 import type { ViewId, ViewSection } from '../types';
 
-import { getEvents } from '../api/events';
-import { getOrganizers } from '../api/organizers';
-import { getAdminPayoutRequests } from '../api/payouts';
+import { getAttention } from '../api/dashboard';
 import { getOrganizerNotifications } from '../api/organizerNotifications';
 
 import { Icon, type IconName } from './Icon';
@@ -160,18 +158,15 @@ const ORGANIZER_FOOTER: NavItem[] = [
 /* Badges                                                                      */
 /* -------------------------------------------------------------------------- */
 
+/** Un seul appel léger (compteurs SQL) au lieu de trois listes complètes à chaque navigation. */
 async function loadAdminBadges(): Promise<Badges> {
-  const [events, organizers, payouts] = await Promise.all([
-    getEvents('PENDING_APPROVAL'),
-    getOrganizers('PENDING'),
-    getAdminPayoutRequests('PENDING'),
-  ]);
+  const a = await getAttention();
 
   return {
-    eventsToReview: events.length,
-    organizersPending: organizers.length,
-    payoutsPending: payouts.length,
-    notifications: events.length + organizers.length + payouts.length,
+    eventsToReview: a.eventsToReview,
+    organizersPending: a.organizersPending,
+    payoutsPending: a.payoutsPending,
+    notifications: a.eventsToReview + a.organizersPending + a.payoutsPending,
   };
 }
 
