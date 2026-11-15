@@ -10,6 +10,10 @@ interface TableViewProps {
   totalRows: number;
   page: number;
   totalPages: number;
+  /** Pagination côté serveur : pas de total connu. Affiche « Page n » et active « Suivant » selon cette valeur. */
+  hasNext?: boolean;
+  /** Remplace « N résultats » (ex. : « 20 résultats sur cette page »). */
+  totalLabel?: string;
   onPrevPage: () => void;
   onNextPage: () => void;
   regionOptions?: readonly string[];
@@ -40,6 +44,8 @@ export function TableView({
   totalRows,
   page,
   totalPages,
+  hasNext,
+  totalLabel,
   onPrevPage,
   onNextPage,
   regionOptions,
@@ -81,7 +87,7 @@ export function TableView({
             </select>
           )}
         </div>
-        <div className="bo-table-toolbar-count" style={{ fontSize: 12.5, color: '#6B6459' }}>{totalRows} résultats</div>
+        <div className="bo-table-toolbar-count" style={{ fontSize: 12.5, color: '#6B6459' }}>{totalLabel ?? `${totalRows} résultats`}</div>
         <div className="bo-table-toolbar-actions" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           {headerExtra}
           {onCreate && (
@@ -177,13 +183,13 @@ export function TableView({
 
       <div className="bo-table-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
         <div style={{ fontSize: 12.5, color: '#6B6459' }}>
-          Page {page} / {totalPages}
+          {hasNext === undefined ? `Page ${page} / ${totalPages}` : `Page ${page}`}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" onClick={onPrevPage} style={pagerBtn}>
+          <button type="button" onClick={onPrevPage} disabled={hasNext !== undefined && page <= 1} style={hasNext !== undefined && page <= 1 ? { ...pagerBtn, opacity: 0.4, cursor: 'default' } : pagerBtn}>
             <Icon name="back" size={14} /> Précédent
           </button>
-          <button type="button" onClick={onNextPage} style={pagerBtn}>
+          <button type="button" onClick={onNextPage} disabled={hasNext === false} style={hasNext === false ? { ...pagerBtn, opacity: 0.4, cursor: 'default' } : pagerBtn}>
             Suivant <Icon name="next" size={14} />
           </button>
         </div>

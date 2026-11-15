@@ -127,6 +127,14 @@ export interface EventItem {
   organizerName?: string | null;
 }
 
+/** Tranche d'une liste paginée côté serveur : pas de total, seulement l'existence d'une page suivante. */
+export interface PageResponse<T> {
+  items: T[];
+  page: number;
+  size: number;
+  hasNext: boolean;
+}
+
 export interface AdminBooking {
   id: string;
   clientName: string;

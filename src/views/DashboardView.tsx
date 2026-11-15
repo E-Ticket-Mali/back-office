@@ -1,6 +1,6 @@
 import { KpiCard } from '../components/KpiCard';
 import { getAttention, getDashboardStats } from '../api/dashboard';
-import { getBookings } from '../api/bookings';
+import { searchBookings } from '../api/bookings';
 import { useCollection } from '../hooks/useCollection';
 import { LoadingState, ErrorState } from '../components/LoadingState';
 import { GREEN, GOLD } from '../theme';
@@ -40,7 +40,10 @@ type DashboardViewProps = Readonly<{ onNavigate: (view: ViewId, section?: ViewSe
 export function DashboardView({ onNavigate }: DashboardViewProps) {
   const { data: statsRows, loading: statsLoading, error: statsError } = useDashboardStats();
   const { data: attentionRows } = useCollection(loadAttention);
-  const { data: bookings, loading: bookingsLoading, error: bookingsError } = useCollection(getBookings);
+  // Les 8 dernières réservations seulement, au lieu de toute la liste.
+  const { data: recentBookings, loading: bookingsLoading, error: bookingsError } = useCollection(() =>
+    searchBookings({ size: 8 }).then((page) => page.items),
+  );
 
   if (statsLoading || bookingsLoading) return <LoadingState label="Chargement du tableau de bord…" />;
   if (statsError) return <ErrorState message={statsError} />;
@@ -64,7 +67,6 @@ export function DashboardView({ onNavigate }: DashboardViewProps) {
     { label: 'Billets scannés', value: stats.ticketsScanned, sub: `/${stats.ticketsIssued} émis`, color: GOLD },
   ];
 
-  const recentBookings = bookings.slice(0, 8);
   const attention = attentionRows[0];
 
   return (
