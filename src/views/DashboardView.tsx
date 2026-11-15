@@ -1,12 +1,9 @@
 import { KpiCard } from '../components/KpiCard';
-import { getDashboardStats } from '../api/dashboard';
+import { getAttention, getDashboardStats } from '../api/dashboard';
 import { getBookings } from '../api/bookings';
 import { useCollection } from '../hooks/useCollection';
 import { LoadingState, ErrorState } from '../components/LoadingState';
 import { GREEN, GOLD } from '../theme';
-import { getEvents } from '../api/events';
-import { getOrganizers } from '../api/organizers';
-import { getAdminPayoutRequests } from '../api/payouts';
 import { HeadlineBar } from '../components/ui';
 import { plural } from '../components/uiStyles';
 import type { BookingStatus, ViewId, ViewSection } from '../types';
@@ -27,17 +24,13 @@ function useDashboardStats() {
 
 /** Ce qui demande une action de l'ADMIN — affiché en tête, avant les KPI. */
 async function loadAttention() {
-  const [events, pendingOrganizers, pendingPayouts] = await Promise.all([
-    getEvents(),
-    getOrganizers('PENDING'),
-    getAdminPayoutRequests('PENDING'),
-  ]);
+  const a = await getAttention();
   return [
     {
-      published: events.filter((e) => e.status === 'PUBLISHED').length,
-      pendingEvents: events.filter((e) => e.status === 'PENDING_APPROVAL').length,
-      pendingOrganizers: pendingOrganizers.length,
-      pendingPayouts: pendingPayouts.length,
+      published: a.publishedEvents,
+      pendingEvents: a.eventsToReview,
+      pendingOrganizers: a.organizersPending,
+      pendingPayouts: a.payoutsPending,
     },
   ];
 }
