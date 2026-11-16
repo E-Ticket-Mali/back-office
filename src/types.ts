@@ -58,7 +58,7 @@ export type EventCategory = 'HIPPIQUE' | 'CONCERT' | 'SPORT' | 'CONFERENCE' | 'C
 export type TicketType = 'VIP' | 'STANDARD' | 'EARLY_BIRD';
 export type BookingKind = 'HOTEL' | 'EVENT';
 export type BookingStatus = 'CONFIRMED' | 'PENDING' | 'CANCELLED';
-export type PaymentMethod = 'CARD' | 'ORANGE_MONEY' | 'WAVE';
+export type PaymentMethod = 'CARD' | 'ORANGE_MONEY' | 'WAVE' | 'MOOV_MONEY' | 'FREE_MONEY';
 export type ScanStatus = 'VALID' | 'USED' | 'INVALID';
 
 export interface Room {
